@@ -1,0 +1,1 @@
+{"root":["./src/app.ts","./src/server.ts","./src/controller/authcontroller.ts","./src/controller/errorcontroller.ts","./src/route/auth.ts","./src/route/index.ts","./src/utils/apperror.ts","./src/utils/catchasync.ts"],"version":"5.9.2"}

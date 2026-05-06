@@ -1,0 +1,1 @@
+{"root":["./src/server.ts","./src/handlers/connectionhandler.ts","./src/middlewares/authmiddleware.ts","./src/repositories/userrepository.ts","./src/services/socketservice.ts","./src/types/socket.ts","./src/utils/jwtconfig.ts"],"version":"5.9.2"}

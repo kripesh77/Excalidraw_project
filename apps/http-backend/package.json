@@ -1,0 +1,33 @@
+{
+  "name": "http-backend",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "tsc && node ./dist/server.js",
+    "build": "tsc",
+    "start": "node ./dist/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@repo/auth-utils": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@repo/validators": "workspace:*",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "nodemailer": "^8.0.7",
+    "zod": "^4.4.2"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/bcrypt": "^6.0.0",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^8.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "tsx": "^4.21.0"
+  }
+}
