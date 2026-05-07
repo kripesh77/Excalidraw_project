@@ -12,7 +12,7 @@ export const signUpSchema = z
     emailVerificationToken: z.string().optional(),
     emailVerificationExpires: z.date().optional(),
   })
-  .strict();
+  .strip();
 
 export const signInSchema = z
   .object({
@@ -21,7 +21,7 @@ export const signInSchema = z
       .string("Password must be 6 char long")
       .min(6, "Password must be 6 char long"),
   })
-  .strict();
+  .strip();
 
 export const treeifyError = (err: Error) => {
   if (err instanceof z.ZodError) {
