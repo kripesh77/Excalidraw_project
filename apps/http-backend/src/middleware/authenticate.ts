@@ -24,7 +24,7 @@ export const authenticate = catchAsync(
 
     const user = await prisma.user.findUnique({ where: { id: decoded.sub } });
 
-    if (!user) return next(new AppError("User no longer exists!!!", 404));
+    if (!user) return next(new AppError("User doesn't exists", 404));
 
     req.user = user;
 

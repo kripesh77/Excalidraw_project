@@ -12,4 +12,6 @@ router.post(
   roomController.createRoom,
 );
 
+router.get("/chats/:roomId", authenticate, roomController.getRoomChats);
+
 export { router as roomRouter };

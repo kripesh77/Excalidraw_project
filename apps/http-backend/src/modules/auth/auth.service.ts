@@ -7,6 +7,7 @@ import { AUTH_EVENTS } from "./events/auth.events.js";
 import { IEventBus } from "../../events/eventBus.type.js";
 import { IVerificationTokenService } from "../../infrastructure/security/verification-token.service.js";
 import { AppError } from "../../utils/appError.js";
+import { User } from "@repo/db";
 
 export class AuthService implements IAuthService {
   constructor(
@@ -68,13 +69,13 @@ export class AuthService implements IAuthService {
     const user = await this.userService.findByEmailWithPassword(
       signInDto.email,
     );
-    if (!user) throw new AppError("User doesn't exist!!!", 404);
+    if (!user) throw new AppError("User doesn't exist", 404);
     const correctPassword = await this.bcryptPasswordService.compare(
       signInDto.password,
       user.password,
     );
     if (!correctPassword) {
-      throw new AppError("Password is incorrect", 401);
+      throw new AppError("Incorrect password", 401);
     }
     if (user.isEmailVerified === false) {
       throw new AppError("Please verify your email first", 400);
@@ -93,5 +94,13 @@ export class AuthService implements IAuthService {
     await this.userService.updateRefreshToken(user.id, hashedRefreshToken);
 
     return { user: safeUser, accessToken, refreshToken };
+  }
+
+  async refresh(user: User) {
+    const accessToken = await this.jwtService.signAccessTokenAsync({
+      sub: user.id,
+    });
+
+    return accessToken;
   }
 }

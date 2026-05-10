@@ -17,4 +17,26 @@ export class RoomController {
       res.status(201).json({ status: "success", data: { room } });
     },
   );
+
+  getRoomChats = catchAsync(
+    async (req: Request, res: Response, next: NextFunction) => {
+      if (!req.user) return next(new AppError("User doesn't exists", 404));
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 50;
+      const roomId = req.params.roomId;
+      if (Array.isArray(roomId) || !roomId) {
+        return next(new AppError("User doesn't exists", 404));
+      }
+      const chats = await this.roomService.getChats(
+        page,
+        limit,
+        +roomId,
+        req.user,
+      );
+      res.json({
+        status: "success",
+        data: chats,
+      });
+    },
+  );
 }

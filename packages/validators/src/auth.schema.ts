@@ -23,6 +23,12 @@ export const signInSchema = z
   })
   .strip();
 
+export const refreshTokenSchema = z
+  .object({
+    refreshToken: z.string("please provide a valid access token"),
+  })
+  .strip();
+
 export const treeifyError = (err: Error) => {
   if (err instanceof z.ZodError) {
     return z.treeifyError(err);
@@ -32,3 +38,4 @@ export const treeifyError = (err: Error) => {
 
 export type SignUpDto = z.infer<typeof signUpSchema>;
 export type SignInDto = z.infer<typeof signInSchema>;
+export type RefreshTokenDto = z.infer<typeof refreshTokenSchema>;

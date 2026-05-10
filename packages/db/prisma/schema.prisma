@@ -8,41 +8,57 @@ datasource db {
 }
 
 model User {
-  id                       String   @id @default(uuid()) @db.Uuid
-  username                 String   @unique
-  email                    String   @unique
+  id                       String    @id @default(uuid()) @db.Uuid
+  username                 String    @unique
+  email                    String    @unique
   password                 String
   refreshToken             String?
 
-  isEmailVerified          Boolean  @default(false)
-  emailVerificationToken   String?  @unique
+  isEmailVerified          Boolean   @default(false)
+  emailVerificationToken   String?   @unique
   emailVerificationExpires DateTime?
   passwordChangeAfter      DateTime?
 
-  createdAt                DateTime @default(now())
+  createdAt                DateTime  @default(now())
   updatedAt                DateTime? @updatedAt
 
-  rooms                    Room[]
+  ownedRooms               Room[]        @relation("RoomAdmin")
+  memberships              RoomMember[]
   chats                    Chat[]
 }
 
 model Room {
-  id        Int      @id @default(autoincrement())
-  slug      String   @unique
-  createdAt DateTime @default(now())
+  id        Int       @id @default(autoincrement())
+  slug      String    @unique
+  createdAt DateTime  @default(now())
 
-  adminId    String   @db.Uuid
-  admin      User     @relation(fields: [adminId], references: [id])
+  adminId   String    @db.Uuid
+  admin     User      @relation("RoomAdmin", fields: [adminId], references: [id])
 
-  chats     Chat[]   // Messages in this room
+  members   RoomMember[]
+  chats     Chat[]
+}
+
+model RoomMember {
+  userId    String    @db.Uuid
+  roomId    Int
+
+  joinedAt  DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roomId])
 }
 
 model Chat {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   message   String
-  createdAt DateTime @default(now())
-  senderId  String   @db.Uuid
-  sender    User     @relation(fields: [senderId], references: [id])
+  createdAt DateTime  @default(now())
+
+  senderId  String    @db.Uuid
+  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
   roomId    Int
-  room      Room     @relation(fields: [roomId], references: [id])
+  room      Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }
