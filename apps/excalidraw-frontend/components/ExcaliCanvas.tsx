@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ExcaliSelector from "./ExcaliSelector";
+import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/context/authContext";
 
 type Shape =
   | {
@@ -26,262 +28,304 @@ type Shape =
       endY: number;
     };
 
-interface Iconfig {
+export type Tool = "rect" | "ellipse" | "line";
+
+type InteractionState = {
+  drawing: boolean;
   startX: number;
   startY: number;
-  endX: number;
-  endY: number;
-  centerX: number;
-  centerY: number;
-  radiusX: number;
-  radiusY: number;
-  isShiftPressed: boolean;
-  clicked: boolean;
-}
+  shift: boolean;
+};
 
-export type ISelected = "rect" | "ellipse" | "line";
-export interface IconProps {
-  selected?: boolean;
-  onSelect: (selected: ISelected) => void;
-}
+export type IconProps = {
+  selected: boolean;
+  onSelect: (sel: Tool) => void;
+};
 
 export default function ExcaliCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  const [selectedTool, setSelectedTool] = useState<ISelected>("rect");
-  const existingShapes = useRef<Shape[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  function handleSelected(sel: ISelected) {
-    setSelectedTool(() => sel);
+  const shapesRef = useRef<Shape[]>([]);
+  const draftRef = useRef<Shape | null>(null);
+
+  const stateRef = useRef<InteractionState>({
+    drawing: false,
+    startX: 0,
+    startY: 0,
+    shift: false,
+  });
+
+  const rafRef = useRef<number | null>(null);
+
+  const [tool, setTool] = useState<Tool>("rect");
+
+  const { accessToken } = useAuth();
+  const params = useParams<{ slug: string }>();
+  const router = useRouter();
+
+  // -----------------------
+  // RAF render system
+  // -----------------------
+  const render = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+
+    if (!canvas || !ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const draw = (shape: Shape) => {
+      ctx.beginPath();
+
+      if (shape.type === "rect") {
+        ctx.strokeRect(
+          shape.startX,
+          shape.startY,
+          shape.endX - shape.startX,
+          shape.endY - shape.startY,
+        );
+      }
+
+      if (shape.type === "ellipse") {
+        ctx.ellipse(
+          shape.centerX,
+          shape.centerY,
+          shape.radiusX,
+          shape.radiusY,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+      }
+
+      if (shape.type === "line") {
+        ctx.moveTo(shape.startX, shape.startY);
+        ctx.lineTo(shape.endX, shape.endY);
+        ctx.stroke();
+      }
+    };
+
+    shapesRef.current.forEach(draw);
+
+    if (draftRef.current) {
+      draw(draftRef.current);
+    }
+  }, []);
+
+  const scheduleRender = useCallback(() => {
+    if (rafRef.current) return;
+
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      render();
+    });
+  }, [render]);
+
+  useEffect(() => {
+    if (!accessToken || !params.slug) return;
+
+    let shouldRedirectOnClose = true;
+    let isActive = true;
+    let joinRoomTimer: number | null = null;
+
+    const ws = new WebSocket(
+      `${process.env.NEXT_PUBLIC_WS_URL!}?token=${accessToken}&slug=${params.slug}`,
+    );
+
+    const sendJoinRoom = () => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+
+      ws.send(
+        JSON.stringify({
+          type: "join_room",
+        }),
+      );
+    };
+
+    ws.onopen = () => {
+      if (!isActive) {
+        ws.close();
+        return;
+      }
+
+      sendJoinRoom();
+      joinRoomTimer = window.setTimeout(sendJoinRoom, 150);
+    };
+
+    ws.onmessage = (msg) => {
+      const data = JSON.parse(msg.data);
+      console.log(data);
+
+      if (data.type !== "chat") return;
+
+      shapesRef.current.push(data.message);
+      scheduleRender();
+    };
+
+    ws.onclose = () => {
+      if (shouldRedirectOnClose) {
+        router.replace("/dashboard");
+      }
+    };
+
+    wsRef.current = ws;
+
+    return () => {
+      isActive = false;
+      shouldRedirectOnClose = false;
+      if (joinRoomTimer) window.clearTimeout(joinRoomTimer);
+
+      if (
+        ws.readyState === WebSocket.OPEN ||
+        ws.readyState === WebSocket.CLOSING
+      ) {
+        ws.close();
+      }
+    };
+  }, [accessToken, params.slug, router, scheduleRender]);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) return;
+
+    ctxRef.current = ctx;
+    ctx.lineWidth = 2;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      render();
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code.startsWith("Shift")) {
+        stateRef.current.shift = true;
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      if (e.code.startsWith("Shift")) {
+        stateRef.current.shift = false;
+      }
+    });
+
+    return () => {
+      window.removeEventListener("resize", resize);
+    };
+  }, [render]);
+
+  function onMouseDown(e: React.MouseEvent) {
+    stateRef.current.drawing = true;
+
+    stateRef.current.startX = e.clientX;
+    stateRef.current.startY = e.clientY;
+  }
+
+  function onMouseMove(e: React.MouseEvent) {
+    if (!stateRef.current.drawing) return;
+
+    const { startX, startY, shift } = stateRef.current;
+
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (tool === "rect") {
+      draftRef.current = {
+        type: "rect",
+        startX,
+        startY,
+        endX: x,
+        endY: y,
+      };
+    }
+
+    if (tool === "line") {
+      draftRef.current = {
+        type: "line",
+        startX,
+        startY,
+        endX: x,
+        endY: y,
+      };
+    }
+
+    if (tool === "ellipse") {
+      let w = Math.abs(x - startX);
+      let h = Math.abs(y - startY);
+
+      if (shift) {
+        const size = Math.max(w, h);
+        w = h = size;
+      }
+
+      const dx = x - startX;
+      const dy = y - startY;
+
+      const signX = dx < 0 ? -1 : 1;
+      const signY = dy < 0 ? -1 : 1;
+
+      const endX = startX + w * signX;
+      const endY = startY + h * signY;
+
+      draftRef.current = {
+        type: "ellipse",
+        centerX: (startX + endX) / 2,
+        centerY: (startY + endY) / 2,
+        radiusX: w / 2,
+        radiusY: h / 2,
+      };
+    }
+
+    scheduleRender();
+  }
+
+  function onMouseUp() {
+    stateRef.current.drawing = false;
+
+    if (!draftRef.current) return;
+
+    shapesRef.current.push(draftRef.current);
+
+    wsRef.current?.send(
+      JSON.stringify({
+        type: "chat",
+        roomId: 7,
+        message: draftRef.current,
+      }),
+    );
+
+    draftRef.current = null;
+
+    scheduleRender();
   }
 
   useEffect(() => {
-    const handleResize = () => {
-      if (!canvasRef.current) return;
-
-      canvasRef.current.width = window.innerWidth;
-      canvasRef.current.height = window.innerHeight;
-    };
-
-    handleResize();
-
-    window.addEventListener("resize", handleResize);
-
-    if (!canvasRef.current) return;
-
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx) return;
-
-    ctx.lineWidth = 2;
-
-    const config: Iconfig = {
-      startX: -1,
-      startY: -1,
-      endX: -1,
-      endY: -1,
-      // ellipse related fields
-      centerX: -1,
-      centerY: -1,
-      radiusX: -1,
-      radiusY: -1,
-      isShiftPressed: false,
-      clicked: false,
-    };
-
-    function handleMouseDown(e: MouseEvent) {
-      config.clicked = true;
-      config.startX = e.clientX;
-      config.startY = e.clientY;
-    }
-
-    function handleMouseUp(e: MouseEvent) {
-      config.clicked = false;
-      config.endX = e.clientX;
-      config.endY = e.clientY;
-
-      switch (selectedTool) {
-        case "rect":
-          const rect = {
-            type: "rect" as const,
-            startX: config.startX,
-            startY: config.startY,
-            endX: config.endX,
-            endY: config.endY,
-          };
-
-          existingShapes.current.push(rect);
-          break;
-
-        case "ellipse":
-          const ellipse = {
-            type: "ellipse" as const,
-            centerX: config.centerX,
-            centerY: config.centerY,
-            radiusX: config.radiusX,
-            radiusY: config.radiusY,
-          };
-
-          existingShapes.current.push(ellipse);
-          break;
-
-        case "line":
-          const line = {
-            type: "line" as const,
-            startX: config.startX,
-            startY: config.startY,
-            endX: config.endX,
-            endY: config.endY,
-          };
-
-          existingShapes.current.push(line);
-          break;
-      }
-    }
-
-    function handleMouseMove(e: MouseEvent) {
-      if (!config.clicked || !ctx) return;
-      if (selectedTool === "rect") {
-        const width = e.clientX - config.startX;
-        const height = e.clientY - config.startY;
-
-        clearRect(ctx!, canvasRef.current!);
-
-        ctx?.strokeRect(config.startX, config.startY, width, height);
-      } else if (selectedTool === "ellipse") {
-        const dx = e.clientX - config.startX;
-        const dy = e.clientY - config.startY;
-
-        let width = Math.abs(dx);
-        let height = Math.abs(dy);
-
-        if (config.isShiftPressed) {
-          const size = Math.max(width, height);
-
-          width = size;
-          height = size;
-        }
-
-        const signX = dx < 0 ? -1 : 1;
-        const signY = dy < 0 ? -1 : 1;
-
-        const endX = config.startX + width * signX;
-        const endY = config.startY + height * signY;
-
-        config.radiusX = width / 2;
-        config.radiusY = height / 2;
-
-        config.centerX = (config.startX + endX) / 2;
-        config.centerY = (config.startY + endY) / 2;
-
-        clearRect(ctx, canvasRef.current!);
-
-        ctx.beginPath();
-
-        ctx.ellipse(
-          config.centerX,
-          config.centerY,
-          config.radiusX,
-          config.radiusY,
-          0,
-          0,
-          2 * Math.PI,
-        );
-
-        ctx.stroke();
-      } else if (selectedTool === "line") {
-        clearRect(ctx!, canvasRef.current!);
-        ctx.beginPath();
-
-        ctx.moveTo(config.startX, config.startY);
-
-        ctx.lineTo(e.clientX, e.clientY);
-
-        ctx.stroke();
-      }
-    }
-
-    function handleKeyDown(e: globalThis.KeyboardEvent) {
-      if (e.code.startsWith("Shift")) {
-        config.isShiftPressed = true;
-      }
-    }
-
-    function handleKeyUp(e: globalThis.KeyboardEvent) {
-      if (e.code.startsWith("Shift")) {
-        config.isShiftPressed = false;
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    window.addEventListener("keyup", handleKeyUp);
-
-    canvasRef.current.addEventListener("mousedown", handleMouseDown);
-
-    canvasRef.current.addEventListener("mouseup", handleMouseUp);
-
-    canvasRef.current.addEventListener("mousemove", handleMouseMove);
-
-    function clearRect(
-      ctx: CanvasRenderingContext2D,
-      canvas: HTMLCanvasElement,
-    ) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      existingShapes.current.forEach((shape) => {
-        ctx.beginPath();
-        if (shape.type === "rect") {
-          const width = shape.endX - shape.startX;
-          const height = shape.endY - shape.startY;
-          ctx.strokeRect(shape.startX, shape.startY, width, height);
-        } else if (shape.type === "ellipse") {
-          ctx.ellipse(
-            shape.centerX,
-            shape.centerY,
-            shape.radiusX,
-            shape.radiusY,
-            0,
-            0,
-            2 * Math.PI,
-          );
-
-          ctx.stroke();
-        } else if (shape.type === "line") {
-          ctx.lineWidth = 2;
-          ctx.moveTo(shape.startX, shape.startY);
-
-          ctx.lineTo(shape.endX, shape.endY);
-
-          ctx.stroke();
-        }
-      });
-    }
-
-    clearRect(ctx!, canvasRef.current);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      if (!canvasRef.current) return;
-      canvasRef.current.removeEventListener("mousedown", handleMouseDown);
-
-      canvasRef.current.removeEventListener("mouseup", handleMouseUp);
-
-      canvasRef.current.removeEventListener("mousemove", handleMouseMove);
-
-      window.removeEventListener("keydown", handleKeyDown);
-
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, [selectedTool]);
+    scheduleRender();
+  }, [scheduleRender]);
 
   return (
     <>
-      <ExcaliSelector
-        selectedTool={selectedTool}
-        handleSelected={handleSelected}
-      />
+      <ExcaliSelector selectedTool={tool} handleSelected={setTool} />
+
       <div className="h-screen overflow-hidden">
-        <canvas ref={canvasRef} className="block" />
+        <canvas
+          ref={canvasRef}
+          className="block"
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+        />
       </div>
     </>
   );

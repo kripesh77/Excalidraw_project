@@ -12,6 +12,10 @@ router.post(
   roomController.createRoom,
 );
 
+router.get("/", authenticate, roomController.getJoinedRooms);
+
+router.post("/join/:slug", authenticate, roomController.joinRoom);
+
 router.get("/chats/:roomId", authenticate, roomController.getRoomChats);
 
 export { router as roomRouter };

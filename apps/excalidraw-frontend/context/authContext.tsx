@@ -6,6 +6,7 @@ import {
   useState,
   Dispatch,
   SetStateAction,
+  useContext,
 } from "react";
 
 type IAuth = {
@@ -28,4 +29,10 @@ export const AuthProvider = ({
   const value = { accessToken, setAccessToken }; // ideally we needed to memoize the object, but now react v19+ compiler is taking care of memoization
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const data = useContext(AuthContext);
+  if (!data) throw new Error("Auth context is used outside the provider");
+  return data;
 };

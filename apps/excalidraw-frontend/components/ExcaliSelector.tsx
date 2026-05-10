@@ -3,14 +3,14 @@ import { ButtonIcon } from "./ButtonIcon";
 import { CircleIcon } from "./CircleIcon";
 import { LineIcon } from "./LineIcon";
 import { RectIcon } from "./RectIcon";
-import { ISelected } from "./ExcaliCanvas";
+import { Tool } from "./ExcaliCanvas";
 
 export default function ExcaliSelector({
   selectedTool,
   handleSelected,
 }: {
-  selectedTool: ISelected;
-  handleSelected: (sel: ISelected) => void;
+  selectedTool: Tool;
+  handleSelected: (sel: Tool) => void;
 }) {
   return (
     <div className="fixed left-1/2 top-10 -translate-1/2">

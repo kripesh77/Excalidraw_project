@@ -18,50 +18,54 @@ export async function handleConnection(
   deps: SocketDeps,
 ) {
   try {
-    const user = await authenticate(req, deps);
+    const { id, slug } = await authenticate(req, deps);
 
-    console.log("Authenticated user:", user.id);
+    console.log("Authenticated user:", id);
 
-    users.push({ userId: user.id, rooms: [], ws });
+    users.push({ userId: id, rooms: [], ws });
 
     ws.on("message", async (data: string) => {
       try {
         const parsedData = JSON.parse(data) as {
           type: string;
-          roomId: string;
           message: string;
         };
+
+        console.log(parsedData);
 
         if (parsedData.type === "join_room") {
           console.log(parsedData);
           const user = users.find((x) => x.ws === ws);
-          user?.rooms.push(parsedData.roomId);
-          ws.send(
-            JSON.stringify({ message: `joined the room ${parsedData.roomId}` }),
-          );
+          user?.rooms.push(slug);
+          ws.send(JSON.stringify({ message: `joined the room ${slug}` }));
         }
 
         if (parsedData.type === "leave_room") {
           const user = users.find((x) => x.ws === ws);
           if (!user) return;
-          user.rooms = user.rooms.filter((x) => x !== parsedData.roomId);
+          user.rooms = user.rooms.filter((x) => x !== slug);
         }
 
         if (parsedData.type === "chat") {
-          const roomId = parsedData.roomId;
           const message = parsedData.message;
 
           await prisma.chat.create({
             data: {
-              roomId: +roomId,
-              message,
-              senderId: user.id,
+              slug,
+              message: JSON.stringify(message),
+              senderId: id,
             },
           });
 
           users.forEach((user) => {
-            if (user.rooms.includes(roomId)) {
-              user.ws.send(JSON.stringify({ type: "chat", message, roomId }));
+            if (user.rooms.includes(slug)) {
+              user.ws.send(
+                JSON.stringify({
+                  type: "chat",
+                  message,
+                  slug,
+                }),
+              );
             }
           });
         }

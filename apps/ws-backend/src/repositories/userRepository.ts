@@ -3,8 +3,25 @@ dotenv.config();
 
 import { PrismaClient } from "@repo/db";
 
-export async function getUserById(prisma: PrismaClient, userId: string) {
-  return prisma.user.findUnique({
-    where: { id: userId },
+export async function isUserVerifiedMember(
+  prisma: PrismaClient,
+  userId: string,
+  slug: string,
+) {
+  return await prisma.user.findFirst({
+    where: {
+      id: userId,
+      isEmailVerified: true,
+      memberships: {
+        some: {
+          room: {
+            slug,
+          },
+        },
+      },
+    },
+    select: {
+      id: true,
+    },
   });
 }
