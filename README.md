@@ -32,7 +32,7 @@ export TURBO_TOKEN=your_vercel_token
 docker build \
  --secret id=turbo_token,env=TURBO_TOKEN \
  --build-arg TURBO_TEAM=my-team \
- -f ./docker/Dockerfile.http-backend \
+ -f ./docker/Dockerfile.http-be \
  -t http-backend .
 
 docker run --env-file /path/to/env/file -p 8000:8000 http-backend
