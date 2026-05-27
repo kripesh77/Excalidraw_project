@@ -46,12 +46,12 @@ jobs:
             ${{ secrets.BACKEND_ENV_FILE }}
             EOF
 
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/http-backend:${{ github.sha }}
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/http-backend:${{ github.sha }}
 
-            docker stop http-backend || true
-            docker rm http-backend || true
+            sudo docker stop http-backend || true
+            sudo docker rm http-backend || true
 
-            docker run -d \
+            sudo docker run -d \
              --name http-backend \
              -p 8000:8000 \
              --env-file /home/ubuntu/app/backend.env \
