@@ -1,0 +1,59 @@
+name: Backend_deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Docker login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./docker/Dockerfile.backend
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/http-backend:${{ github.sha }}
+
+          build-args: |
+            TURBO_TEAM=${{ secrets.TURBO_TEAM }}
+
+          secrets: |
+            turbo_token=${{ secrets.TURBO_TOKEN }}
+
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            mkdir -p /home/ubuntu/app
+
+            cat > /home/ubuntu/app/backend.env << 'EOF'
+            ${{ secrets.BACKEND_ENV_FILE }}
+            EOF
+
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/http-backend:${{ github.sha }}
+
+            docker stop http-backend || true
+            docker rm http-backend || true
+
+            docker run -d \
+             --name http-backend \
+             -p 8000:8000 \
+             --env-file /home/ubuntu/app/backend.env \
+             --restart unless-stopped \
+             ${{ secrets.DOCKERHUB_USERNAME }}/http-backend:${{ github.sha }}
