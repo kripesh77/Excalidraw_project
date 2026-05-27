@@ -1,0 +1,53 @@
+FROM node:20-alpine AS base
+RUN corepack enable
+WORKDIR /app
+
+#------Pruner------#
+FROM base AS pruner
+
+COPY . .
+
+RUN pnpm dlx turbo prune excalidraw-frontend --docker
+
+#------Installer------#
+FROM base AS installer
+
+COPY --from=pruner /app/out/json/ .
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+#------Builder------#
+FROM base AS builder
+
+ARG TURBO_TEAM
+ARG NEXT_PUBLIC_BACKEND_URL
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_WS_URL
+
+ENV TURBO_TEAM=$TURBO_TEAM
+ENV TURBO_TELEMETRY_DISABLED=1
+
+COPY --from=installer /app/ .
+COPY --from=pruner /app/out/full/ .
+
+RUN --mount=type=cache,target=/root/.cache/turbo \
+        pnpm turbo run build \
+            --filter=excalidraw-frontend
+
+#------Runner------#
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/apps/excalidraw-frontend/.next/standalone ./
+
+COPY --from=builder /app/apps/excalidraw-frontend/.next/static ./apps/excalidraw-frontend/.next/static
+
+COPY --from=builder /app/apps/excalidraw-frontend/public ./apps/excalidraw-frontend/public
+
+EXPOSE 3000
+
+CMD ["node", "apps/excalidraw-frontend/server.js"]

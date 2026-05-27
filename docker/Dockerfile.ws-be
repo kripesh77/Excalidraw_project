@@ -1,0 +1,57 @@
+FROM node:24-alpine AS base
+RUN corepack enable
+WORKDIR /app
+
+FROM base AS pruner
+
+COPY . .
+
+RUN pnpm dlx turbo prune ws-backend --docker
+
+FROM base AS installer
+
+COPY --from=pruner /app/out/json/ ./
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile
+
+FROM base AS builder
+
+ENV NODE_ENV=production
+ENV TURBO_TELEMETRY_DISABLED=1
+
+ARG TURBO_TEAM
+ENV TURBO_TEAM=$TURBO_TEAM
+
+COPY --from=installer /app/ ./
+COPY --from=pruner /app/out/full/ ./
+
+RUN --mount=type=secret,id=turbo_token \
+    --mount=type=cache,target=/root/.cache/turbo \
+    TURBO_TOKEN="$(cat /run/secrets/turbo_token)" \
+    pnpm turbo run build --filter=ws-backend
+
+RUN mkdir -p /app/runtime/dist \
+    /app/runtime/packages/auth-utils/dist \
+    /app/runtime/packages/db/dist && \
+    cp -R /app/apps/ws-backend/dist/. /app/runtime/dist/ && \
+    cp -R /app/packages/auth-utils/dist/. /app/runtime/packages/auth-utils/dist/ && \
+    cp -R /app/packages/db/dist/. /app/runtime/packages/db/dist/ && \
+    cp /app/pnpm-lock.yaml /app/runtime/pnpm-lock.yaml && \
+    cp /app/pnpm-workspace.yaml /app/runtime/pnpm-workspace.yaml && \
+    node -e "const fs=require('fs'); const path=require('path'); const runtime='/app/runtime'; const write=(file, data)=>{fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file, JSON.stringify(data, null, 2));}; write(runtime + '/package.json', {name:'ws-backend-runtime', private:true, type:'module', dependencies:{'@repo/auth-utils':'file:packages/auth-utils','@repo/db':'file:packages/db','dotenv':'^17.4.2','ws':'^8.20.0'}}); write(runtime + '/packages/auth-utils/package.json', {name:'@repo/auth-utils', version:'1.0.0', type:'module', dependencies:{'jsonwebtoken':'^9.0.3','ms':'^2.1.3'}, exports:{'.':'./dist/index.js'}}); write(runtime + '/packages/db/package.json', {name:'@repo/db', version:'1.0.0', type:'module', dependencies:{'@prisma/adapter-pg':'^7.8.0','@prisma/client':'^7.8.0','dotenv':'^17.4.2','pg':'^8.20.0'}, exports:{'.':'./dist/index.js'}});"
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    cd /app/runtime && pnpm install --prod --ignore-scripts
+
+FROM node:24-alpine AS runner
+RUN corepack enable
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/runtime/ ./
+
+EXPOSE 8080
+
+CMD ["node", "dist/server.js"]
