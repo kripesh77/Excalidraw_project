@@ -13,7 +13,23 @@ export default async function Layout({
     redirect("/api/auth");
   }
 
-  const accessToken = await getValidAccessToken(false);
+  // Read access token without attempting to set cookies here.
+  let accessToken = await getValidAccessToken(false);
+
+  if (!accessToken) {
+    // Call the dedicated refresh route which is allowed to mutate cookies.
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/auth/refresh`,
+      {
+        method: "POST",
+        cache: "no-store",
+      },
+    );
+    if (res.ok) {
+      const json = await res.json().catch(() => ({}));
+      accessToken = json?.accessToken ?? null;
+    }
+  }
 
   if (!accessToken) {
     redirect("/api/auth");

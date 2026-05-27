@@ -42,7 +42,12 @@ export type IconProps = {
   onSelect: (sel: Tool) => void;
 };
 
-export default function ExcaliCanvas() {
+export default function ExcaliCanvas({
+  initialMessages = [],
+}: {
+  initialMessages?: string[];
+}) {
+  console.log(initialMessages);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
@@ -57,6 +62,7 @@ export default function ExcaliCanvas() {
   });
 
   const rafRef = useRef<number | null>(null);
+  const didLoadHistoryRef = useRef(false);
 
   const [tool, setTool] = useState<Tool>("rect");
 
@@ -119,6 +125,36 @@ export default function ExcaliCanvas() {
       render();
     });
   }, [render]);
+
+  useEffect(() => {
+    if (didLoadHistoryRef.current) return;
+    didLoadHistoryRef.current = true;
+
+    if (!initialMessages.length) return;
+
+    const parsed = initialMessages
+      .map((raw) => {
+        if (typeof raw !== "string") return null;
+        try {
+          return JSON.parse(raw) as Shape;
+        } catch {
+          return null;
+        }
+      })
+      .filter((shape): shape is Shape => {
+        if (!shape || typeof shape !== "object") return false;
+        return (
+          shape.type === "rect" ||
+          shape.type === "ellipse" ||
+          shape.type === "line"
+        );
+      });
+
+    if (!parsed.length) return;
+
+    shapesRef.current.push(...parsed);
+    scheduleRender();
+  }, [initialMessages, scheduleRender]);
 
   useEffect(() => {
     if (!params.slug) return;
