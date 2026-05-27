@@ -23,7 +23,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ./docker/Dockerfile.backend
+          file: ./docker/Dockerfile.http-be
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/http-backend:${{ github.sha }}
 
