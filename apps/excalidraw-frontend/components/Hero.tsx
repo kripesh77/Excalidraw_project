@@ -1,3 +1,4 @@
+import Link from "next/link";
 import CanvasPreview from "./CanvasPreview";
 
 export default function Hero() {
@@ -9,20 +10,39 @@ export default function Hero() {
             Whiteboards that{" "}
             <span className="relative inline-block">
               feel
-              <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 200 12" preserveAspectRatio="none">
-                <path d="M2 8 Q 50 2 100 7 T 198 6" fill="none" stroke="#a855f7" strokeWidth="3" strokeLinecap="round" />
+              <svg
+                className="absolute -bottom-2 left-0 w-full"
+                viewBox="0 0 200 12"
+                preserveAspectRatio="none"
+              >
+                <path
+                  d="M2 8 Q 50 2 100 7 T 198 6"
+                  fill="none"
+                  stroke="#a855f7"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
               </svg>
             </span>{" "}
             hand-drawn.
           </h1>
           <p className="mt-6 max-w-lg text-lg text-slate-600">
-            Scribbly is a delightfully simple virtual whiteboard. Sketch diagrams, wireframe ideas, and collaborate in real-time — all with that warm, hand-drawn charm.
+            Scribbly is a delightfully simple virtual whiteboard. Sketch
+            diagrams, wireframe ideas, and collaborate in real-time — all with
+            that warm, hand-drawn charm.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
-            <a href="#" className="sketch bg-purple-600 px-6 py-3 text-base font-semibold text-white transition-transform hover:-translate-y-0.5 hover:rotate-[-1deg]">
+            <Link
+              href="/dashboard"
+              className="sketch bg-purple-600 px-6 py-3 text-base font-semibold text-white transition-transform hover:-translate-y-0.5 hover:rotate-[-1deg]"
+            >
               Start drawing — it's free
-            </a>
-            <a href="#" className="sketch bg-white px-6 py-3 text-base font-semibold transition-transform hover:-translate-y-0.5 hover:rotate-[1deg]">
+            </Link>
+            <a
+              href="https://github.com/kripesh77/excalidraw_project"
+              target="blank"
+              className="sketch bg-white px-6 py-3 text-base font-semibold transition-transform hover:-translate-y-0.5 hover:rotate-[1deg]"
+            >
               ⭐ Star on GitHub
             </a>
           </div>
