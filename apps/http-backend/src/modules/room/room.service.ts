@@ -50,12 +50,10 @@ export class RoomService implements IRoomService {
     } catch (error) {
       const prismaError = error as { code?: string };
 
-      // Duplicate membership
       if (prismaError.code === "P2002") {
         throw new AppError("Already joined this room", 400);
       }
 
-      // Room slug does not exist
       if (prismaError.code === "P2025") {
         throw new AppError("Room not found", 404);
       }

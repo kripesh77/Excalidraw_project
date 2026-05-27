@@ -2,55 +2,55 @@
 
 import { cookies } from "next/headers";
 import {
-  AuthActionErrors,
+  ActionErrors,
+  CreateRoomActionState,
+  JoinRoomActionState,
   SigninActionState,
   SignupActionState,
 } from "./types";
-import axios from "axios";
+import {
+  getValidAccessToken,
+  refreshAccessToken,
+  setAccessTokenCookie,
+  setRefreshTokenCookie,
+} from "@/lib/auth.server";
 import { redirect } from "next/navigation";
+import { revalidateTag } from "next/cache";
 
 export async function signin(_: SigninActionState, formData: FormData) {
   const rawData = Object.fromEntries(formData.entries());
   const email = rawData.email as string;
   const password = rawData.password as string;
   try {
-    const response = await axios.post(
+    const response = await fetch(
       `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/signin`,
       {
-        email,
-        password,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
       },
     );
 
-    const refreshToken = response.data.data.refreshToken;
+    const json = await response.json().catch(() => ({}));
 
-    const cookieStore = await cookies();
-
-    cookieStore.set("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-      sameSite: "lax",
-    });
-    redirect("/dashboard");
-  } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      let errors: AuthActionErrors = err.response?.data?.errors ||
-        err.response?.data.message || {
+    if (!response.ok) {
+      let errors: ActionErrors = json?.errors ||
+        json?.message || {
           email: "Something went wrong",
         };
 
       const cookieStore = await cookies();
 
-      if (err.response?.data.message === "Incorrect password") {
+      if (json?.message === "Incorrect password") {
         errors = {
           password: "Incorrect password",
         };
         cookieStore.delete("auth_token");
       }
 
-      if (err.response?.data.message === "User doesn't exist") {
+      if (json?.message === "User doesn't exist") {
         errors = {
           email: "User doesn't exist",
         };
@@ -62,6 +62,17 @@ export async function signin(_: SigninActionState, formData: FormData) {
       };
     }
 
+    const accessToken = json?.data?.accessToken as string | undefined;
+    const refreshToken = json?.data?.refreshToken as string | undefined;
+
+    if (!accessToken || !refreshToken) {
+      return { error: { error: "Unexpected error occurred" } };
+    }
+
+    await setAccessTokenCookie(accessToken);
+    await setRefreshTokenCookie(refreshToken);
+    redirect("/dashboard");
+  } catch {
     return { error: { error: "Unexpected error occurred" } };
   }
 }
@@ -72,31 +83,34 @@ export async function signup(_: SignupActionState, formData: FormData) {
   const email = rawData.email as string;
   const password = rawData.password as string;
 
-  // this flag is introduced as redirect doesn't work reliably inside try...catch.
-  // it throws an special internal error to trigger navigation
-  // so that error is swallowed by try catch
-  // the success flag is just a work around
   let success = false;
 
   try {
-    await axios.post(
+    const response = await fetch(
       `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/signup`,
-      { username, email, password },
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, email, password }),
+      },
     );
-    success = true;
-  } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      let errors: AuthActionErrors = err.response?.data?.errors ||
-        err.response?.data.message || {
+
+    const json = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      let errors: ActionErrors = json?.errors ||
+        json?.message || {
           email: "Something went wrong",
         };
 
-      if (err.response?.data.status === "fail") {
-        if (err.response.data.message.includes("email")) {
+      if (json?.status === "fail" && typeof json?.message === "string") {
+        if (json.message.includes("email")) {
           errors = {
             email: "Email is already taken",
           };
-        } else if (err.response.data.message.includes("username")) {
+        } else if (json.message.includes("username")) {
           errors = {
             username: "Username is already taken",
           };
@@ -108,9 +122,118 @@ export async function signup(_: SignupActionState, formData: FormData) {
       };
     }
 
+    success = true;
+  } catch {
     return { error: { error: "Unexpected error occurred" } };
   }
   if (success) {
     redirect("/verify");
+  }
+}
+
+export async function createRoom(
+  _: CreateRoomActionState | undefined,
+  formData: FormData,
+): Promise<CreateRoomActionState | undefined> {
+  const rawData = Object.fromEntries(formData.entries());
+  const roomName = rawData.create as string;
+
+  let accessToken = await getValidAccessToken(true);
+
+  if (!accessToken) {
+    return { error: { create: "Unauthorized" } };
+  }
+
+  const makeRequest = (token: string) =>
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/room`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ roomName }),
+    });
+
+  try {
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401) {
+      accessToken = await refreshAccessToken(undefined, true);
+      if (accessToken) {
+        response = await makeRequest(accessToken);
+      }
+    }
+
+    const json = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const rawErrors = json?.errors?.properties?.roomName?.errors;
+      const message =
+        (Array.isArray(rawErrors) ? rawErrors.join(", ") : rawErrors) ||
+        json?.message ||
+        "Failed to create room";
+
+      return {
+        error: { create: message },
+        formData: { create: roomName },
+      };
+    }
+
+    revalidateTag("rooms", "default");
+    return {
+      formData: { create: "" },
+    };
+  } catch {
+    return { error: { error: "Unexpected error occurred" } };
+  }
+}
+
+export async function joinRoom(
+  _: JoinRoomActionState | undefined,
+  formData: FormData,
+): Promise<JoinRoomActionState | undefined> {
+  const rawData = Object.fromEntries(formData.entries());
+  const slug = rawData.join as string;
+
+  let accessToken = await getValidAccessToken(true);
+
+  if (!accessToken) {
+    return { error: { join: "Unauthorized" } };
+  }
+
+  const makeRequest = (token: string) =>
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/room/join/${slug}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+  try {
+    let response = await makeRequest(accessToken);
+
+    if (response.status === 401) {
+      accessToken = await refreshAccessToken(undefined, true);
+      if (accessToken) {
+        response = await makeRequest(accessToken);
+      }
+    }
+
+    const json = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const message = json?.message || "Failed to join room";
+      return {
+        error: { join: message },
+        formData: { join: slug },
+      };
+    }
+
+    revalidateTag("rooms", "default");
+    return {
+      formData: { join: "" },
+    };
+  } catch {
+    return { error: { error: "Unexpected error occurred" } };
   }
 }

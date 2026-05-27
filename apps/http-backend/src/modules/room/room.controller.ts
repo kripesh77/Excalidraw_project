@@ -44,7 +44,7 @@ export class RoomController {
     async (req: Request, res: Response, next: NextFunction) => {
       if (!req.user) return next(new AppError("User doesn't exists", 404));
       const page = Number(req.query.page) || 1;
-      const limit = Number(req.query.limit) || 50;
+      const limit = Number(req.query.limit) || 500;
       const slug = req.params.slug;
       if (Array.isArray(slug) || !slug) {
         return next(new AppError("User doesn't exists", 404));

@@ -1,12 +1,21 @@
 "use client";
 
-import { SigninActionState, SignupActionState } from "@/lib/types";
+import {
+  CreateRoomActionState,
+  JoinRoomActionState,
+  SigninActionState,
+  SignupActionState,
+} from "@/lib/types";
 import { useState } from "react";
 
-type AuthActionState = SigninActionState | SignupActionState;
+type ActionState =
+  | SigninActionState
+  | SignupActionState
+  | CreateRoomActionState
+  | JoinRoomActionState;
 
 interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  data: AuthActionState | undefined;
+  data?: ActionState | undefined;
   label: string;
   name: string;
   inputType?: string;

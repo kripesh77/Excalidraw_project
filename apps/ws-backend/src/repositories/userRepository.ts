@@ -25,3 +25,15 @@ export async function isUserVerifiedMember(
     },
   });
 }
+
+export async function isUserVerified(prisma: PrismaClient, userId: string) {
+  return await prisma.user.findFirst({
+    where: {
+      id: userId,
+      isEmailVerified: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+}

@@ -37,7 +37,6 @@ export interface TokenPayload extends JwtPayload {
 }
 
 export interface ITokenService {
-  // Sync
   signAccessToken(payload: TokenPayload, options?: SignOptions): string;
   signRefreshToken(payload: TokenPayload, options?: SignOptions): string;
   verifyAccessToken<T extends TokenPayload>(
@@ -49,7 +48,6 @@ export interface ITokenService {
     options?: VerifyOptions,
   ): T;
 
-  // Async (added)
   signAccessTokenAsync(
     payload: TokenPayload,
     options?: SignOptions,

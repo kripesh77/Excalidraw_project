@@ -1,6 +1,5 @@
-import { AuthProvider } from "@/context/authContext";
-import axios from "axios";
-import { cookies } from "next/headers";
+import { getValidAccessToken, getRefreshTokenCookie } from "@/lib/auth.server";
+import { WsProvider } from "@/context/wsContext";
 import { redirect } from "next/navigation";
 
 export default async function Layout({
@@ -8,33 +7,17 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-
-  const refreshToken = cookieStore.get("refreshToken")?.value;
+  const refreshToken = await getRefreshTokenCookie();
 
   if (!refreshToken) {
     redirect("/api/auth");
   }
 
-  let accessToken: string;
+  const accessToken = await getValidAccessToken(false);
 
-  try {
-    const response = await axios.post(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/refresh`,
-      {},
-      {
-        headers: {
-          Authorization: `Bearer ${refreshToken}`,
-        },
-      },
-    );
-    accessToken = response.data.data.accessToken;
-  } catch (e: unknown) {
+  if (!accessToken) {
     redirect("/api/auth");
   }
-  return (
-    <AuthProvider token={accessToken}>
-      <div>{children}</div>
-    </AuthProvider>
-  );
+
+  return <WsProvider token={accessToken}>{children}</WsProvider>;
 }

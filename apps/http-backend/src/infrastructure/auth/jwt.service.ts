@@ -1,4 +1,3 @@
-// src/config/jwt.config.ts
 import dotenv from "dotenv";
 dotenv.config();
 

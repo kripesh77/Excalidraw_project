@@ -17,5 +17,5 @@ export class AppConfig implements IAppConfig {
   }
 }
 
-// Export singleton instance
+// Exporting singleton instance
 export const appConfig = new AppConfig();

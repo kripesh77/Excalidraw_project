@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ExcaliSelector from "./ExcaliSelector";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "@/context/authContext";
+import { useWs } from "@/context/wsContext";
 
 type Shape =
   | {
@@ -46,8 +46,6 @@ export default function ExcaliCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
-
   const shapesRef = useRef<Shape[]>([]);
   const draftRef = useRef<Shape | null>(null);
 
@@ -62,13 +60,10 @@ export default function ExcaliCanvas() {
 
   const [tool, setTool] = useState<Tool>("rect");
 
-  const { accessToken } = useAuth();
   const params = useParams<{ slug: string }>();
   const router = useRouter();
+  const { joinRoom, leaveRoom, sendChat, subscribe } = useWs();
 
-  // -----------------------
-  // RAF render system
-  // -----------------------
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = ctxRef.current;
@@ -126,67 +121,27 @@ export default function ExcaliCanvas() {
   }, [render]);
 
   useEffect(() => {
-    if (!accessToken || !params.slug) return;
+    if (!params.slug) return;
 
-    let shouldRedirectOnClose = true;
-    let isActive = true;
-    let joinRoomTimer: number | null = null;
-
-    const ws = new WebSocket(
-      `${process.env.NEXT_PUBLIC_WS_URL!}?token=${accessToken}&slug=${params.slug}`,
-    );
-
-    const sendJoinRoom = () => {
-      if (ws.readyState !== WebSocket.OPEN) return;
-
-      ws.send(
-        JSON.stringify({
-          type: "join_room",
-        }),
-      );
-    };
-
-    ws.onopen = () => {
-      if (!isActive) {
-        ws.close();
+    joinRoom(params.slug);
+    const unsubscribe = subscribe((data) => {
+      if (data?.type === "join_room_denied" && data.slug === params.slug) {
+        leaveRoom(params.slug);
+        router.replace("/dashboard");
         return;
       }
+      if (data?.type !== "chat") return;
+      if (data.slug !== params.slug) return;
 
-      sendJoinRoom();
-      joinRoomTimer = window.setTimeout(sendJoinRoom, 150);
-    };
-
-    ws.onmessage = (msg) => {
-      const data = JSON.parse(msg.data);
-      console.log(data);
-
-      if (data.type !== "chat") return;
-
-      shapesRef.current.push(data.message);
+      shapesRef.current.push(data.message as Shape);
       scheduleRender();
-    };
-
-    ws.onclose = () => {
-      if (shouldRedirectOnClose) {
-        router.replace("/dashboard");
-      }
-    };
-
-    wsRef.current = ws;
+    });
 
     return () => {
-      isActive = false;
-      shouldRedirectOnClose = false;
-      if (joinRoomTimer) window.clearTimeout(joinRoomTimer);
-
-      if (
-        ws.readyState === WebSocket.OPEN ||
-        ws.readyState === WebSocket.CLOSING
-      ) {
-        ws.close();
-      }
+      unsubscribe();
+      leaveRoom(params.slug);
     };
-  }, [accessToken, params.slug, router, scheduleRender]);
+  }, [joinRoom, leaveRoom, params.slug, router, scheduleRender, subscribe]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -297,13 +252,9 @@ export default function ExcaliCanvas() {
 
     shapesRef.current.push(draftRef.current);
 
-    wsRef.current?.send(
-      JSON.stringify({
-        type: "chat",
-        roomId: 7,
-        message: draftRef.current,
-      }),
-    );
+    if (params.slug) {
+      sendChat(params.slug, draftRef.current);
+    }
 
     draftRef.current = null;
 

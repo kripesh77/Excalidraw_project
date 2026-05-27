@@ -31,5 +31,5 @@ export class MailConfig implements IMailConfig {
   }
 }
 
-// Export singleton instance
+// Exporting singleton instance
 export const mailConfig = new MailConfig();

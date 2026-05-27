@@ -9,16 +9,34 @@ export interface SignupFormData {
   password: string;
 }
 
-export interface AuthActionErrors {
+export interface CreateRoomFormData {
+  create: string;
+}
+
+export interface JoinRoomFormData {
+  join: string;
+}
+
+export interface ActionErrors {
   [key: string]: string | undefined;
 }
 
 export interface SigninActionState {
-  error?: AuthActionErrors;
+  error?: ActionErrors;
   formData?: SigninFormData;
 }
 
 export interface SignupActionState {
-  error?: AuthActionErrors;
+  error?: ActionErrors;
   formData?: SignupFormData;
+}
+
+export interface CreateRoomActionState {
+  error?: ActionErrors;
+  formData?: CreateRoomFormData;
+}
+
+export interface JoinRoomActionState {
+  error?: ActionErrors;
+  formData?: JoinRoomFormData;
 }

@@ -3,8 +3,6 @@ import jwt from "jsonwebtoken";
 import { AppError } from "../utils/appError.js";
 import { Prisma } from "@repo/db";
 
-// ---------------- PRISMA HANDLERS ----------------
-
 const handlePrismaDuplicate = (
   err: Prisma.PrismaClientKnownRequestError,
 ): AppError => {
@@ -23,8 +21,6 @@ const handlePrismaDuplicate = (
 
 const handlePrismaValidation = (): AppError =>
   new AppError("Invalid input data", 400);
-
-// ---------------- SENDERS ----------------
 
 const sendErrorDev = (err: AppError, res: Response) => {
   return res.status(err.statusCode).json({
@@ -49,8 +45,6 @@ const sendErrorProd = (err: AppError, res: Response) => {
     message: "Something went very wrong!",
   });
 };
-
-// ---------------- GLOBAL HANDLER ----------------
 
 export const globalErrorHandler = (
   err: unknown,
