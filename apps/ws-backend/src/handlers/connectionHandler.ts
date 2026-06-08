@@ -31,11 +31,6 @@ function removeFromRoom(user: IUser, room: string) {
   if (set.size === 0) roomMap.delete(room);
 }
 
-/**
- * -------------------------
- * Redis fanout (optimized)
- * -------------------------
- */
 redisSubscribe.psubscribe("room:*");
 
 redisSubscribe.on("pmessage", (_pattern, channel, message) => {
@@ -51,11 +46,6 @@ redisSubscribe.on("pmessage", (_pattern, channel, message) => {
   }
 });
 
-/**
- * -------------------------
- * cleanup
- * -------------------------
- */
 function removeUser(ws: WebSocket) {
   const user = userMap.get(ws);
   if (!user) return;
@@ -71,11 +61,6 @@ function removeUser(ws: WebSocket) {
   userMap.delete(ws);
 }
 
-/**
- * -------------------------
- * connection handler
- * -------------------------
- */
 export async function handleConnection(
   ws: WebSocket,
   req: IncomingMessage,
@@ -107,9 +92,6 @@ export async function handleConnection(
 
       const { type, slug, message } = parsed;
 
-      /**
-       * JOIN ROOM
-       */
       if (type === "join_room") {
         if (!slug) {
           ws.send(JSON.stringify({ type: "join_room_denied" }));
@@ -135,18 +117,12 @@ export async function handleConnection(
         return;
       }
 
-      /**
-       * LEAVE ROOM
-       */
       if (type === "leave_room") {
         if (!slug) return;
         removeFromRoom(user, slug);
         return;
       }
 
-      /**
-       * CHAT
-       */
       if (type === "chat") {
         if (!slug || !message) return;
         if (!user.rooms.has(slug)) return;
