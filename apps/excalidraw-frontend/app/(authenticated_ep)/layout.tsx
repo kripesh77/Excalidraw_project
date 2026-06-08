@@ -16,21 +16,7 @@ export default async function Layout({
   let accessToken = await getValidAccessToken(false);
 
   if (!accessToken) {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/auth/refresh`,
-      {
-        method: "POST",
-        cache: "no-store",
-      },
-    );
-    if (res.ok) {
-      const json = await res.json().catch(() => ({}));
-      accessToken = json?.accessToken ?? null;
-    }
-  }
-
-  if (!accessToken) {
-    redirect("/api/auth");
+    redirect("/api/auth/refresh");
   }
 
   return <WsProvider token={accessToken}>{children}</WsProvider>;

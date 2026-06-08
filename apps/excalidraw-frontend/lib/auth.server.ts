@@ -92,5 +92,5 @@ export async function getValidAccessToken(setCookie = false) {
     return accessToken;
   }
 
-  return refreshAccessToken(undefined, setCookie);
+  return null;
 }

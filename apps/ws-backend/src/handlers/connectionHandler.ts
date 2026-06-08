@@ -1,24 +1,81 @@
 import { WebSocket } from "ws";
 import { IncomingMessage } from "http";
+
 import { SocketDeps } from "../types/socket.js";
 import { authenticate } from "../middlewares/authMiddleware.js";
 import { isUserVerifiedMember } from "../repositories/userRepository.js";
 
+import { redisPublish, redisSubscribe } from "@repo/redis";
+
 interface IUser {
   userId: string;
-  rooms: string[];
+  rooms: Set<string>;
   ws: WebSocket;
 }
 
-const users: IUser[] = [];
+const userMap = new Map<WebSocket, IUser>();
+const roomMap = new Map<string, Set<IUser>>();
 
-function removeUser(ws: WebSocket) {
-  const idx = users.findIndex((user) => user.ws === ws);
-  if (idx !== -1) {
-    users.splice(idx, 1);
-  }
+function addToRoom(user: IUser, room: string) {
+  if (!roomMap.has(room)) roomMap.set(room, new Set());
+  roomMap.get(room)!.add(user);
+  user.rooms.add(room);
 }
 
+function removeFromRoom(user: IUser, room: string) {
+  user.rooms.delete(room);
+  const set = roomMap.get(room);
+  if (!set) return;
+
+  set.delete(user);
+  if (set.size === 0) roomMap.delete(room);
+}
+
+/**
+ * -------------------------
+ * Redis fanout (optimized)
+ * -------------------------
+ */
+redisSubscribe.psubscribe("room:*");
+
+redisSubscribe.on("pmessage", (_pattern, channel, message) => {
+  const room = channel.split(":")[1];
+  const users = roomMap.get(room as string);
+
+  if (!users) return;
+
+  for (const user of users) {
+    if (user.ws.readyState === WebSocket.OPEN) {
+      user.ws.send(message);
+    }
+  }
+});
+
+/**
+ * -------------------------
+ * cleanup
+ * -------------------------
+ */
+function removeUser(ws: WebSocket) {
+  const user = userMap.get(ws);
+  if (!user) return;
+
+  for (const room of user.rooms) {
+    const set = roomMap.get(room);
+    if (set) {
+      set.delete(user);
+      if (set.size === 0) roomMap.delete(room);
+    }
+  }
+
+  userMap.delete(ws);
+}
+
+/**
+ * -------------------------
+ * connection handler
+ * -------------------------
+ */
 export async function handleConnection(
   ws: WebSocket,
   req: IncomingMessage,
@@ -27,94 +84,93 @@ export async function handleConnection(
   try {
     const { id } = await authenticate(req, deps);
 
-    console.log("Authenticated user:", id);
+    const user: IUser = {
+      userId: id,
+      rooms: new Set(),
+      ws,
+    };
 
-    users.push({ userId: id, rooms: [], ws });
+    userMap.set(ws, user);
 
-    // Ensure cleanup on both expected and unexpected disconnects.
     ws.on("close", () => removeUser(ws));
     ws.on("error", () => removeUser(ws));
 
     ws.on("message", async (data: string) => {
+      let parsed: any;
+
       try {
-        const parsedData = JSON.parse(data) as {
-          type: string;
-          slug?: string;
-          message?: unknown;
-        };
+        parsed = JSON.parse(data);
+      } catch {
+        ws.send(JSON.stringify({ message: "Invalid JSON payload" }));
+        return;
+      }
 
-        console.log(parsedData);
+      const { type, slug, message } = parsed;
 
-        if (parsedData.type === "join_room") {
-          const slug = parsedData.slug;
-          if (!slug) {
-            ws.send(JSON.stringify({ type: "join_room_denied" }));
-            return;
-          }
-
-          const isMember = await isUserVerifiedMember(deps.prisma, id, slug);
-          if (!isMember) {
-            ws.send(
-              JSON.stringify({
-                type: "join_room_denied",
-                slug,
-                message: "Not a member",
-              }),
-            );
-            return;
-          }
-
-          const user = users.find((x) => x.ws === ws);
-          if (user && !user.rooms.includes(slug)) {
-            user.rooms.push(slug);
-          }
-          ws.send(JSON.stringify({ type: "join_room_ack", slug }));
+      /**
+       * JOIN ROOM
+       */
+      if (type === "join_room") {
+        if (!slug) {
+          ws.send(JSON.stringify({ type: "join_room_denied" }));
+          return;
         }
 
-        if (parsedData.type === "leave_room") {
-          const slug = parsedData.slug;
-          if (!slug) return;
-          const user = users.find((x) => x.ws === ws);
-          if (!user) return;
-          user.rooms = user.rooms.filter((x) => x !== slug);
-        }
+        const isMember = await isUserVerifiedMember(deps.prisma, id, slug);
 
-        if (parsedData.type === "chat") {
-          const slug = parsedData.slug;
-          if (!slug) return;
-
-          const user = users.find((x) => x.ws === ws);
-          if (!user || !user.rooms.includes(slug)) return;
-
-          const message = parsedData.message;
-
-          await deps.prisma.chat.create({
-            data: {
+        if (!isMember) {
+          ws.send(
+            JSON.stringify({
+              type: "join_room_denied",
               slug,
-              message: JSON.stringify(message),
-              senderId: id,
-            },
-          });
-
-          users.forEach((user) => {
-            if (user.rooms.includes(slug)) {
-              user.ws.send(
-                JSON.stringify({
-                  type: "chat",
-                  message,
-                  slug,
-                }),
-              );
-            }
-          });
+              message: "Not a member",
+            }),
+          );
+          return;
         }
-      } catch (e) {
-        ws.send(JSON.stringify({ message: "Please send stringified data" }));
+
+        addToRoom(user, slug);
+
+        ws.send(JSON.stringify({ type: "join_room_ack", slug }));
+        return;
+      }
+
+      /**
+       * LEAVE ROOM
+       */
+      if (type === "leave_room") {
+        if (!slug) return;
+        removeFromRoom(user, slug);
+        return;
+      }
+
+      /**
+       * CHAT
+       */
+      if (type === "chat") {
+        if (!slug || !message) return;
+        if (!user.rooms.has(slug)) return;
+
+        await deps.prisma.chat.create({
+          data: {
+            slug,
+            message: JSON.stringify(message),
+            senderId: id,
+          },
+        });
+
+        const payload = JSON.stringify({
+          type: "chat",
+          slug,
+          message,
+        });
+
+        await redisPublish.publish(`room:${slug}`, payload);
       }
     });
 
     ws.send(JSON.stringify({ type: "connected" }));
-  } catch (err) {
+  } catch {
     ws.close(1008, "Unauthorized");
   }
 }
