@@ -9,6 +9,7 @@ on:
       - "packages/auth-utils/**"
       - "packages/db/**"
       - "packages/typescript-config/**"
+      - ".github/workflows/cd_ws.yml"
 
 jobs:
   build-and-deploy:
