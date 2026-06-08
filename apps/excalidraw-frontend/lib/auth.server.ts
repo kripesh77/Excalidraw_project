@@ -59,7 +59,11 @@ export async function refreshAccessToken(
     },
   );
 
-  if (!res.ok) return null;
+  console.log(res);
+
+  if (!res.ok) {
+    console.log(await res.json());
+  }
 
   const json = await res.json().catch(() => null);
   const accessToken = json?.data?.accessToken as string | undefined;

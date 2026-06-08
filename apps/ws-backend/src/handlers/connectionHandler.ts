@@ -146,7 +146,17 @@ export async function handleConnection(
     });
 
     ws.send(JSON.stringify({ type: "connected" }));
-  } catch {
+  } catch (err) {
+    // log auth/connect errors to help debug frequent reconnects in production
+    try {
+      console.warn("WS connection rejected", {
+        url: req.url,
+        remoteAddress: req.socket?.remoteAddress,
+        error: (err as Error).message,
+      });
+    } catch {
+      // ignore logging errors
+    }
     ws.close(1008, "Unauthorized");
   }
 }
