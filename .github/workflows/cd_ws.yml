@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "apps/ws-backend"
+      - "apps/ws-backend/**"
       - "packages/auth-utils/**"
       - "packages/db/**"
       - "packages/typescript-config/**"
