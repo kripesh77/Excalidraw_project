@@ -40,6 +40,7 @@ export function WsProvider({
   const readyRef = useRef(false);
   const heartbeatRef = useRef<number | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const shouldReconnectRef = useRef(true);
   const backoffRef = useRef(1000); // start 1s
   const [status, setStatus] = useState<"connecting" | "open" | "closed">(
     "connecting",
@@ -49,7 +50,7 @@ export function WsProvider({
   const MAX_QUEUE = 100;
 
   const readyPromiseRef = useRef<Promise<void> | null>(null);
-  let resolveReady: (() => void) | null = null;
+  const resolveReadyRef = useRef<(() => void) | null>(null);
 
   const flushQueue = useCallback(() => {
     const ws = wsRef.current;
@@ -93,10 +94,11 @@ export function WsProvider({
   const connect = useCallback(() => {
     if (!token) return;
 
+    shouldReconnectRef.current = true;
     setStatus("connecting");
 
     readyPromiseRef.current = new Promise((resolve) => {
-      resolveReady = resolve;
+      resolveReadyRef.current = resolve;
     });
     readyRef.current = false;
 
@@ -121,8 +123,8 @@ export function WsProvider({
 
         if (data?.type === "connected") {
           readyRef.current = true;
-          resolveReady?.();
-          resolveReady = null;
+          resolveReadyRef.current?.();
+          resolveReadyRef.current = null;
           flushQueue();
 
           roomsRef.current.forEach((slug) => {
@@ -136,11 +138,17 @@ export function WsProvider({
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       cleanup();
+
+      if (!shouldReconnectRef.current) return;
+      if (event.code === 1008) return;
+
       reconnectTimeoutRef.current = window.setTimeout(() => {
         connect();
       }, backoffRef.current);
+
+      backoffRef.current = Math.min(backoffRef.current * 2, 30000);
     };
 
     ws.onerror = () => {
@@ -151,6 +159,7 @@ export function WsProvider({
   useEffect(() => {
     connect();
     return () => {
+      shouldReconnectRef.current = false;
       if (reconnectTimeoutRef.current)
         clearTimeout(reconnectTimeoutRef.current);
       cleanup();
