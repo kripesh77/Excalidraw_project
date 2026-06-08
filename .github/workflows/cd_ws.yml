@@ -63,3 +63,5 @@ jobs:
              --env-file /home/${{ secrets.SERVER_USER }}/app/backend.env \
              --restart unless-stopped \
              ${{ secrets.DOCKERHUB_USERNAME }}/ws-backend:${{ github.sha }}
+
+            rm /home/${{ secrets.SERVER_USER }}/app/backend.env

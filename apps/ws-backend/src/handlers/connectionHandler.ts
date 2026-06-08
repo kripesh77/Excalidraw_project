@@ -6,6 +6,7 @@ import { authenticate } from "../middlewares/authMiddleware.js";
 import { isUserVerifiedMember } from "../repositories/userRepository.js";
 
 import { redisPublish, redisSubscribe } from "@repo/redis";
+import { produceMessage } from "@repo/kafka";
 
 interface IUser {
   userId: string;
@@ -141,7 +142,18 @@ export async function handleConnection(
           message,
         });
 
-        await redisPublish.publish(`room:${slug}`, payload);
+        try {
+          await Promise.all([
+            redisPublish.publish(`room:${slug}`, payload),
+            produceMessage({ slug, message, id }),
+          ]);
+        } catch (error) {
+          console.warn("Redis publish failed", {
+            slug,
+            userId: id,
+            error,
+          });
+        }
       }
     });
 

@@ -1,9 +1,8 @@
 {
-  "name": "@repo/redis",
+  "name": "@repo/kafka",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "build": "tsc -b",
     "dev": "tsc -b --watch"
@@ -11,14 +10,16 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "module",
   "devDependencies": {
-    "@repo/typescript-config": "workspace:*"
-  },
-  "dependencies": {
-    "dotenv": "^17.4.2",
-    "ioredis": "^5.11.1"
+    "@repo/typescript-config": "workspace:*",
+    "@repo/db": "workspace:*"
   },
   "exports": {
     ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "kafkajs": "^2.2.4"
   }
 }

@@ -15,6 +15,7 @@
     "@repo/auth-utils": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/redis": "workspace:*",
+    "@repo/kafka": "workspace:*",
     "dotenv": "^17.4.2",
     "ws": "^8.20.0"
   },
