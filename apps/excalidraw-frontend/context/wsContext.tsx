@@ -71,7 +71,6 @@ export function WsProvider({
 
     ws.onopen = () => {
       setStatus("open");
-      // Fallback: if we never receive a "connected" message, flush anyway.
       readyTimeoutRef.current = window.setTimeout(() => {
         readyRef.current = true;
         flushQueue();
@@ -90,9 +89,7 @@ export function WsProvider({
           flushQueue();
         }
         listenersRef.current.forEach((listener) => listener(data));
-      } catch {
-        // ignoring malformed messages
-      }
+      } catch {}
     };
 
     ws.onclose = () => {

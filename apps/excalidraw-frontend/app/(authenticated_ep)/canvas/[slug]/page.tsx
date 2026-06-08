@@ -19,7 +19,6 @@ export default async function Page({
     redirect("/api/auth");
   }
 
-  // Read without mutating cookies here; refresh via route if missing
   let accessToken = await getValidAccessToken(false);
 
   if (!accessToken) {

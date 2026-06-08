@@ -3,7 +3,15 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
+    "build:backend": "turbo run build --filter=http-backend",
+    "build:websocket": "turbo run build --filter=ws-backend",
     "dev": "turbo run dev",
+    "dev:frontend": "turbo run dev --filter=excalidraw-frontend",
+    "dev:backend": "turbo run dev --filter=http-backend",
+    "dev:websocket": "turbo run dev --filter=ws-backend",
+    "depoly": "turbo run deploy",
+    "deploy:backend": "turbo run deploy --filter=http-backend",
+    "deploy:websocket": "turbo run deploy --filter=ws-backend",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"

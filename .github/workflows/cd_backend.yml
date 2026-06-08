@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "apps/http-backend/**"
+      - "packages/auth-utils/**"
+      - "packages/typescript-config/**"
+      - "packages/db/**"
+      - "packages/validators/**"
 
 jobs:
   build-and-deploy:

@@ -13,7 +13,6 @@ export const JoinRoomModal = ({ onSuccess }: { onSuccess?: () => void }) => {
       if (result && !result.error && slug) {
         onSuccess?.();
         router.refresh();
-        router.push(`/canvas/${slug}`);
       }
       return result;
     },
