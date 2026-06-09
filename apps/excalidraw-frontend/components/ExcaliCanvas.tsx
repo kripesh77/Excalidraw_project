@@ -47,7 +47,6 @@ export default function ExcaliCanvas({
 }: {
   initialMessages?: string[];
 }) {
-  console.log(initialMessages);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
@@ -68,7 +67,7 @@ export default function ExcaliCanvas({
 
   const params = useParams<{ slug: string }>();
   const router = useRouter();
-  const { joinRoom, leaveRoom, sendChat, subscribe } = useWs();
+  const { joinRoom, leaveRoom, sendData, subscribe, connectionState } = useWs();
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -157,18 +156,10 @@ export default function ExcaliCanvas({
   }, [initialMessages, scheduleRender]);
 
   useEffect(() => {
-    if (!params.slug) return;
-
-    let joined = false;
+    if (!params.slug || connectionState !== "connected") return;
 
     joinRoom(params.slug);
     const unsubscribe = subscribe((data) => {
-      if (data.type === "connected" && !joined) {
-        joined = true;
-        joinRoom(params.slug);
-        return;
-      }
-
       if (data.type === "join_room_denied" && data.slug === params.slug) {
         leaveRoom(params.slug);
         router.replace("/dashboard");
@@ -187,7 +178,15 @@ export default function ExcaliCanvas({
 
       leaveRoom(params.slug);
     };
-  }, [joinRoom, leaveRoom, params.slug, router, scheduleRender, subscribe]);
+  }, [
+    joinRoom,
+    leaveRoom,
+    params.slug,
+    router,
+    scheduleRender,
+    subscribe,
+    connectionState,
+  ]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -292,18 +291,18 @@ export default function ExcaliCanvas({
   }
 
   function onMouseUp() {
-    stateRef.current.drawing = false;
-
     if (!draftRef.current) return;
 
     shapesRef.current.push(draftRef.current);
-
-    if (params.slug) {
-      sendChat(params.slug, draftRef.current);
-    }
+    sendData({
+      type: "chat",
+      slug: params.slug,
+      message: draftRef.current,
+    });
 
     draftRef.current = null;
 
+    stateRef.current.drawing = false;
     scheduleRender();
   }
 

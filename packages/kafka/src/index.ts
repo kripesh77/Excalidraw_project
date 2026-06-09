@@ -26,11 +26,15 @@ const { KAFKA_HOST, KAFKA_PORT, KAFKA_USERNAME, KAFKA_PASSWORD, CA } =
 //   },
 // });
 
+const ca = process.env.KAFKA_CA_B64
+  ? Buffer.from(process.env.KAFKA_CA_B64, "base64").toString("utf-8")
+  : undefined;
+
 // This is the way to connect kafka through sasl
 const kafka = new Kafka({
   brokers: [`${KAFKA_HOST}:${KAFKA_PORT}`],
   ssl: {
-    ca: [CA!],
+    ca: ca ? [ca] : undefined,
   },
   sasl: {
     username: KAFKA_USERNAME as string,

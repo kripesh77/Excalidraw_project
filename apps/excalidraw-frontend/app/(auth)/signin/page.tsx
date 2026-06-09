@@ -15,7 +15,6 @@ export default function SignIn() {
     undefined,
   );
 
-  console.log(data);
   return (
     <main className="relative grid place-items-center px-6 py-10 md:py-16">
       {/* floating doodles */}

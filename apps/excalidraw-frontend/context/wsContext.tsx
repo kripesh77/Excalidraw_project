@@ -6,10 +6,15 @@ import {
   useContext,
   useEffect,
   useRef,
+  useState,
 } from "react";
 
+// ============================================================================
+// Types
+// ============================================================================
+
 type WsMessage = {
-  type?: string;
+  type: string;
   slug?: string;
   message?: unknown;
 };
@@ -19,11 +24,24 @@ type WsListener = (data: WsMessage) => void;
 type WsContextValue = {
   joinRoom: (slug: string) => void;
   leaveRoom: (slug: string) => void;
-  sendChat: (slug: string, message: unknown) => void;
+  sendData: (data: WsMessage) => void;
   subscribe: (listener: WsListener) => () => void;
+  connectionState: ConnectionState;
 };
 
+type ConnectionState = "connecting" | "connected" | "disconnected";
+
+// ============================================================================
+// Constants
+// ============================================================================
+
 const WsContext = createContext<WsContextValue | null>(null);
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_INTERVAL_MS = 3000;
+
+// ============================================================================
+// Provider
+// ============================================================================
 
 export function WsProvider({
   token,
@@ -33,87 +51,128 @@ export function WsProvider({
   children: React.ReactNode;
 }) {
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const messageQueueRef = useRef<string[]>([]);
   const listenersRef = useRef(new Set<WsListener>());
-  const isConnectedRef = useRef<Boolean>(false);
+  const desiredRoomsRef = useRef(new Set<string>());
 
-  useEffect(() => {
-    if (!token) return;
+  const [connectionState, setConnectionState] =
+    useState<ConnectionState>("disconnected");
 
-    const ws = new WebSocket(
-      `${process.env.NEXT_PUBLIC_WS_URL}?token=${token}`,
-    );
-
-    wsRef.current = ws;
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === "connected") {
-          isConnectedRef.current = true;
-        }
-
-        listenersRef.current.forEach((listener) => {
-          listener(data);
-        });
-      } catch {}
-    };
-
-    return () => {
-      ws.close();
-      wsRef.current = null;
-    };
-  }, [token]);
-
-  const send = useCallback((payload: WsMessage) => {
+  const sendData = useCallback((data: WsMessage) => {
     const ws = wsRef.current;
+    const message = JSON.stringify(data);
 
-    if (ws?.readyState !== WebSocket.OPEN) return;
-
-    ws.send(JSON.stringify(payload));
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(message);
+    } else {
+      messageQueueRef.current.push(message);
+    }
   }, []);
 
-  const joinRoom = useCallback((slug: string) => {
-    const payload = {
-      type: "join_room",
-      slug,
-    };
+  const connect = useCallback(() => {
+    if (!token || wsRef.current) return;
 
-    // if already connected → send immediately
-    const ws = wsRef.current;
+    setConnectionState("connecting");
 
-    if (!ws) return;
-
-    if (ws.readyState === WebSocket.OPEN && isConnectedRef.current) {
-      ws.send(JSON.stringify(payload));
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    if (!wsUrl) {
+      console.error("NEXT_PUBLIC_WS_URL is not defined");
+      setConnectionState("disconnected");
       return;
     }
 
-    // otherwise wait for open
-    const onOpen = () => {
-      ws.send(JSON.stringify(payload));
+    const ws = new WebSocket(`${wsUrl}?token=${token}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+      setConnectionState("connected");
+      reconnectAttemptsRef.current = 0;
+
+      // Join all desired rooms on new connection
+      desiredRoomsRef.current.forEach((slug) => {
+        sendData({ type: "join_room", slug });
+      });
+
+      // Flush message queue
+      messageQueueRef.current.forEach((msg) => ws.send(msg));
+      messageQueueRef.current = [];
     };
 
-    ws.addEventListener("open", onOpen, { once: true });
-  }, []);
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as WsMessage;
+        listenersRef.current.forEach((listener) => listener(data));
+      } catch (error) {
+        console.error("Failed to parse WebSocket message:", error);
+      }
+    };
+
+    ws.onclose = (event) => {
+      console.log("WebSocket disconnected");
+      wsRef.current = null;
+      setConnectionState("disconnected");
+
+      // Don't reconnect on normal closure or if the token is gone
+      if (event.code === 1000 || !token) {
+        return;
+      }
+
+      // Exponential backoff for reconnection
+      if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+        const delay =
+          RECONNECT_INTERVAL_MS * (reconnectAttemptsRef.current + 1);
+        console.log(`Attempting to reconnect in ${delay}ms...`);
+        setTimeout(() => {
+          reconnectAttemptsRef.current++;
+          connect();
+        }, delay);
+      } else {
+        console.error("Max WebSocket reconnect attempts reached.");
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      ws.close();
+    };
+  }, [token, sendData]);
+
+  useEffect(() => {
+    if (token) {
+      connect();
+    }
+
+    return () => {
+      if (wsRef.current) {
+        console.log("Closing WebSocket connection on cleanup.");
+        wsRef.current.close(1000, "Component unmounting");
+        wsRef.current = null;
+      }
+    };
+  }, [token, connect]);
+
+  const joinRoom = useCallback(
+    (slug: string) => {
+      if (!slug) return;
+      desiredRoomsRef.current.add(slug);
+      sendData({ type: "join_room", slug });
+    },
+    [sendData],
+  );
 
   const leaveRoom = useCallback(
     (slug: string) => {
-      send({ type: "leave_room", slug });
+      if (!slug) return;
+      desiredRoomsRef.current.delete(slug);
+      sendData({ type: "leave_room", slug });
     },
-    [send],
-  );
-
-  const sendChat = useCallback(
-    (slug: string, message: unknown) => {
-      send({ type: "chat", slug, message });
-    },
-    [send],
+    [sendData],
   );
 
   const subscribe = useCallback((listener: WsListener) => {
     listenersRef.current.add(listener);
-
     return () => {
       listenersRef.current.delete(listener);
     };
@@ -124,8 +183,9 @@ export function WsProvider({
       value={{
         joinRoom,
         leaveRoom,
-        sendChat,
+        sendData,
         subscribe,
+        connectionState,
       }}
     >
       {children}
@@ -133,12 +193,14 @@ export function WsProvider({
   );
 }
 
+// ============================================================================
+// Hook
+// ============================================================================
+
 export function useWs() {
   const ctx = useContext(WsContext);
-
   if (!ctx) {
-    throw new Error("useWs must be used within WsProvider");
+    throw new Error("useWs must be used within a WsProvider");
   }
-
   return ctx;
 }
