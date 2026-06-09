@@ -159,14 +159,23 @@ export default function ExcaliCanvas({
   useEffect(() => {
     if (!params.slug) return;
 
+    let joined = false;
+
     joinRoom(params.slug);
     const unsubscribe = subscribe((data) => {
-      if (data?.type === "join_room_denied" && data.slug === params.slug) {
+      if (data.type === "connected" && !joined) {
+        joined = true;
+        joinRoom(params.slug);
+        return;
+      }
+
+      if (data.type === "join_room_denied" && data.slug === params.slug) {
         leaveRoom(params.slug);
         router.replace("/dashboard");
         return;
       }
-      if (data?.type !== "chat") return;
+
+      if (data.type !== "chat") return;
       if (data.slug !== params.slug) return;
 
       shapesRef.current.push(data.message as Shape);
@@ -175,6 +184,7 @@ export default function ExcaliCanvas({
 
     return () => {
       unsubscribe();
+
       leaveRoom(params.slug);
     };
   }, [joinRoom, leaveRoom, params.slug, router, scheduleRender, subscribe]);

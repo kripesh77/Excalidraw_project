@@ -121,6 +121,7 @@ export async function handleConnection(
       if (type === "leave_room") {
         if (!slug) return;
         removeFromRoom(user, slug);
+        ws.send(JSON.stringify({ type: "room_left_successfully" }));
         return;
       }
 

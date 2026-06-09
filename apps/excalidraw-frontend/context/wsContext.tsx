@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useRef,
-  useState,
 } from "react";
 
 type WsMessage = {
@@ -22,7 +21,6 @@ type WsContextValue = {
   leaveRoom: (slug: string) => void;
   sendChat: (slug: string, message: unknown) => void;
   subscribe: (listener: WsListener) => () => void;
-  status: "connecting" | "open" | "closed";
 };
 
 const WsContext = createContext<WsContextValue | null>(null);
@@ -35,184 +33,112 @@ export function WsProvider({
   children: React.ReactNode;
 }) {
   const wsRef = useRef<WebSocket | null>(null);
-  const queueRef = useRef<string[]>([]);
-  const listenersRef = useRef<Set<WsListener>>(new Set());
-  const readyRef = useRef(false);
-  const heartbeatRef = useRef<number | null>(null);
-  const reconnectTimeoutRef = useRef<number | null>(null);
-  const shouldReconnectRef = useRef(true);
-  const backoffRef = useRef(1000); // start 1s
-  const [status, setStatus] = useState<"connecting" | "open" | "closed">(
-    "connecting",
-  );
+  const listenersRef = useRef(new Set<WsListener>());
+  const isConnectedRef = useRef<Boolean>(false);
 
-  const roomsRef = useRef<Set<string>>(new Set());
-  const MAX_QUEUE = 100;
-
-  const readyPromiseRef = useRef<Promise<void> | null>(null);
-  const resolveReadyRef = useRef<(() => void) | null>(null);
-
-  const flushQueue = useCallback(() => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    queueRef.current.forEach((payload) => ws.send(payload));
-    queueRef.current = [];
-  }, []);
-
-  const sendOrQueue = useCallback((payload: WsMessage) => {
-    const encoded = JSON.stringify(payload);
-    const ws = wsRef.current;
-    if (ws?.readyState === WebSocket.OPEN && readyRef.current) {
-      ws.send(encoded);
-      return;
-    }
-    if (queueRef.current.length >= MAX_QUEUE) {
-      queueRef.current.shift(); // drop oldest
-    }
-    queueRef.current.push(encoded);
-  }, []);
-
-  const cleanup = useCallback(() => {
-    readyRef.current = false;
-    setStatus("closed");
-
-    if (heartbeatRef.current) {
-      clearInterval(heartbeatRef.current);
-      heartbeatRef.current = null;
-    }
-
-    if (wsRef.current) {
-      wsRef.current.onopen = null;
-      wsRef.current.onclose = null;
-      wsRef.current.onmessage = null;
-      wsRef.current.onerror = null;
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-  }, []);
-
-  const connect = useCallback(() => {
+  useEffect(() => {
     if (!token) return;
-
-    shouldReconnectRef.current = true;
-    setStatus("connecting");
-
-    readyPromiseRef.current = new Promise((resolve) => {
-      resolveReadyRef.current = resolve;
-    });
-    readyRef.current = false;
 
     const ws = new WebSocket(
       `${process.env.NEXT_PUBLIC_WS_URL}?token=${token}`,
     );
+
     wsRef.current = ws;
 
-    ws.onopen = () => {
-      heartbeatRef.current = window.setInterval(() => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({ type: "ping" }));
-        }
-      }, 30000);
-
-      flushQueue();
-    };
-
-    ws.onmessage = (msg) => {
+    ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(msg.data) as WsMessage;
+        const data = JSON.parse(event.data);
 
-        if (data?.type === "connected") {
-          readyRef.current = true;
-          resolveReadyRef.current?.();
-          resolveReadyRef.current = null;
-          flushQueue();
-
-          roomsRef.current.forEach((slug) => {
-            sendOrQueue({ type: "join_room", slug });
-          });
+        if (data.type === "connected") {
+          isConnectedRef.current = true;
         }
 
-        listenersRef.current.forEach((listener) => listener(data));
-      } catch (err) {
-        console.warn("Invalid WS message", msg.data, err);
-      }
+        listenersRef.current.forEach((listener) => {
+          listener(data);
+        });
+      } catch {}
     };
 
-    ws.onclose = (event) => {
-      cleanup();
-
-      if (!shouldReconnectRef.current) return;
-      if (event.code === 1008) return;
-
-      reconnectTimeoutRef.current = window.setTimeout(() => {
-        connect();
-      }, backoffRef.current);
-
-      backoffRef.current = Math.min(backoffRef.current * 2, 30000);
-    };
-
-    ws.onerror = () => {
-      cleanup();
-    };
-  }, [token, flushQueue, cleanup, sendOrQueue]);
-
-  useEffect(() => {
-    connect();
     return () => {
-      shouldReconnectRef.current = false;
-      if (reconnectTimeoutRef.current)
-        clearTimeout(reconnectTimeoutRef.current);
-      cleanup();
+      ws.close();
+      wsRef.current = null;
     };
-  }, [connect, cleanup]);
+  }, [token]);
 
-  const joinRoom = useCallback(
-    async (slug: string) => {
-      if (!slug) return;
-      roomsRef.current.add(slug);
-      await readyPromiseRef.current;
-      sendOrQueue({ type: "join_room", slug });
-    },
-    [sendOrQueue],
-  );
+  const send = useCallback((payload: WsMessage) => {
+    const ws = wsRef.current;
+
+    if (ws?.readyState !== WebSocket.OPEN) return;
+
+    ws.send(JSON.stringify(payload));
+  }, []);
+
+  const joinRoom = useCallback((slug: string) => {
+    const payload = {
+      type: "join_room",
+      slug,
+    };
+
+    // if already connected → send immediately
+    const ws = wsRef.current;
+
+    if (!ws) return;
+
+    if (ws.readyState === WebSocket.OPEN && isConnectedRef.current) {
+      ws.send(JSON.stringify(payload));
+      return;
+    }
+
+    // otherwise wait for open
+    const onOpen = () => {
+      ws.send(JSON.stringify(payload));
+    };
+
+    ws.addEventListener("open", onOpen, { once: true });
+  }, []);
 
   const leaveRoom = useCallback(
-    async (slug: string) => {
-      if (!slug) return;
-      roomsRef.current.delete(slug);
-      await readyPromiseRef.current;
-      sendOrQueue({ type: "leave_room", slug });
+    (slug: string) => {
+      send({ type: "leave_room", slug });
     },
-    [sendOrQueue],
+    [send],
   );
 
   const sendChat = useCallback(
-    async (slug: string, message: unknown) => {
-      if (!slug) return;
-      await readyPromiseRef.current;
-      sendOrQueue({ type: "chat", slug, message });
+    (slug: string, message: unknown) => {
+      send({ type: "chat", slug, message });
     },
-    [sendOrQueue],
+    [send],
   );
 
   const subscribe = useCallback((listener: WsListener) => {
     listenersRef.current.add(listener);
-    return () => listenersRef.current.delete(listener);
+
+    return () => {
+      listenersRef.current.delete(listener);
+    };
   }, []);
 
-  const value: WsContextValue = {
-    joinRoom,
-    leaveRoom,
-    sendChat,
-    subscribe,
-    status,
-  };
-
-  return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
+  return (
+    <WsContext.Provider
+      value={{
+        joinRoom,
+        leaveRoom,
+        sendChat,
+        subscribe,
+      }}
+    >
+      {children}
+    </WsContext.Provider>
+  );
 }
 
 export function useWs() {
   const ctx = useContext(WsContext);
-  if (!ctx) throw new Error("useWs must be used within WsProvider");
+
+  if (!ctx) {
+    throw new Error("useWs must be used within WsProvider");
+  }
+
   return ctx;
 }
