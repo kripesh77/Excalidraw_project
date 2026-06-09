@@ -1,3 +1,7 @@
+# Project's Backend Architecture for scalability
+
+![Scalable Pub/Sub WebSocket Architecture](./assets/scalable-PUB_SUB-model-for-websocket.svg)
+
 # Installation using Docker
 
 # Enable BuildKit

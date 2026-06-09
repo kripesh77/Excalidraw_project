@@ -1,4 +1,4 @@
-import { getValidAccessToken, getRefreshTokenCookie } from "@/lib/auth.server";
+import { getAccessTokenCookie } from "@/lib/auth.server";
 import { WsProvider } from "@/context/wsContext";
 import { redirect } from "next/navigation";
 
@@ -7,16 +7,10 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  const refreshToken = await getRefreshTokenCookie();
-
-  if (!refreshToken) {
-    redirect("/api/auth");
-  }
-
-  let accessToken = await getValidAccessToken(false);
+  const accessToken = await getAccessTokenCookie();
 
   if (!accessToken) {
-    redirect("/api/auth/refresh");
+    redirect("/signin");
   }
 
   return <WsProvider token={accessToken}>{children}</WsProvider>;

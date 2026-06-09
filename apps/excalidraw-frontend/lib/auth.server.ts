@@ -41,6 +41,12 @@ export async function setRefreshTokenCookie(token: string) {
   });
 }
 
+export async function clearAuthCookies() {
+  const cookieStore = await cookies();
+  cookieStore.delete(ACCESS_TOKEN_COOKIE);
+  cookieStore.delete(REFRESH_TOKEN_COOKIE);
+}
+
 export async function refreshAccessToken(
   refreshToken?: string,
   setCookie = false,
@@ -59,10 +65,10 @@ export async function refreshAccessToken(
     },
   );
 
-  console.log(res);
-
   if (!res.ok) {
-    console.log(await res.json());
+    console.error("Failed to refresh access token:", await res.text());
+    await clearAuthCookies(); // Clear cookies if refresh fails
+    return null;
   }
 
   const json = await res.json().catch(() => null);
@@ -92,9 +98,12 @@ export function isTokenExpired(token: string) {
 
 export async function getValidAccessToken(setCookie = false) {
   const accessToken = await getAccessTokenCookie();
+
   if (accessToken && !isTokenExpired(accessToken)) {
     return accessToken;
   }
 
-  return null;
+  // If access token is expired or missing, trying to refresh it
+  const newAccessToken = await refreshAccessToken(undefined, setCookie);
+  return newAccessToken;
 }
