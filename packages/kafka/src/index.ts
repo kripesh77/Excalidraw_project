@@ -14,18 +14,6 @@ interface IMessageProp {
 const { KAFKA_HOST, KAFKA_PORT, KAFKA_USERNAME, KAFKA_PASSWORD, CA } =
   process.env;
 
-// This is the way to connect kafka through ssl
-// const kafka = new Kafka({
-//   clientId: "my-app",
-//   brokers: [`${KAFKA_HOST}:${KAFKA_PORT}`],
-//   ssl: {
-//     rejectUnauthorized: true,
-//     ca: [fs.readFileSync("../kafka_credentials/ca.pem", "utf-8")],
-//     key: fs.readFileSync("../kafka_credentials/service.key", "utf-8"),
-//     cert: fs.readFileSync("../kafka_credentials/service.cert", "utf-8"),
-//   },
-// });
-
 const ca = process.env.KAFKA_CA_B64
   ? Buffer.from(process.env.KAFKA_CA_B64, "base64").toString("utf-8")
   : undefined;

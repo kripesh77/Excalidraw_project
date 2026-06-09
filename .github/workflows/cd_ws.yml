@@ -9,6 +9,8 @@ on:
       - "packages/auth-utils/**"
       - "packages/db/**"
       - "packages/typescript-config/**"
+      - "packages/redis/**"
+      - "packages/kafka/**"
       - ".github/workflows/cd_ws.yml"
 
 jobs:
