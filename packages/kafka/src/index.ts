@@ -11,8 +11,7 @@ interface IMessageProp {
   value?: string;
 }
 
-const { KAFKA_HOST, KAFKA_PORT, KAFKA_USERNAME, KAFKA_PASSWORD, CA } =
-  process.env;
+const { KAFKA_HOST, KAFKA_PORT, KAFKA_USERNAME, KAFKA_PASSWORD } = process.env;
 
 const ca = process.env.KAFKA_CA_B64
   ? Buffer.from(process.env.KAFKA_CA_B64, "base64").toString("utf-8")
