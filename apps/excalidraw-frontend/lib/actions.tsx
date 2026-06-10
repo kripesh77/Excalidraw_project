@@ -14,7 +14,7 @@ import {
   setAccessTokenCookie,
   setRefreshTokenCookie,
 } from "@/lib/auth.server";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { revalidateTag } from "next/cache";
 
 export async function signin(_: SigninActionState, formData: FormData) {
@@ -71,10 +71,10 @@ export async function signin(_: SigninActionState, formData: FormData) {
 
     await setAccessTokenCookie(accessToken);
     await setRefreshTokenCookie(refreshToken);
-    redirect("/dashboard");
   } catch {
     return { error: { error: "Unexpected error occurred" } };
   }
+  redirect("/dashboard", RedirectType.replace);
 }
 
 export async function signup(_: SignupActionState, formData: FormData) {
@@ -127,7 +127,7 @@ export async function signup(_: SignupActionState, formData: FormData) {
     return { error: { error: "Unexpected error occurred" } };
   }
   if (success) {
-    redirect("/verify");
+    redirect("/verify", RedirectType.replace);
   }
 }
 

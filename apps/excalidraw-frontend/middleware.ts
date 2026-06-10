@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isTokenExpired } from "./lib/auth.server";
 
+const protectedPaths = ["/dashboard", "/canvas"];
+
+function isProtected(pathname: string) {
+  return protectedPaths.some((path) => pathname.startsWith(path));
+}
+
 async function handleAuth(request: NextRequest) {
   const refreshToken = request.cookies.get("refreshToken")?.value;
   let accessToken = request.cookies.get("accessToken")?.value;
@@ -58,6 +64,12 @@ async function handleAuth(request: NextRequest) {
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (!isProtected(pathname)) {
+    return NextResponse.next();
+  }
+
   return handleAuth(request);
 }
 

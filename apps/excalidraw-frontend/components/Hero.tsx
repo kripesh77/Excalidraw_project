@@ -27,7 +27,7 @@ export default function Hero() {
             hand-drawn.
           </h1>
           <p className="mt-6 max-w-lg text-lg text-slate-600">
-            Scribbly is a delightfully simple virtual whiteboard. Sketch
+            ProbabliDraw is a delightfully simple virtual whiteboard. Sketch
             diagrams, wireframe ideas, and collaborate in real-time — all with
             that warm, hand-drawn charm.
           </p>

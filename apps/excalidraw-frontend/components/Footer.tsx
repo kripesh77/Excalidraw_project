@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-6">
         <Logo />
         <p className="text-sm text-slate-600">
-          © 2026 Scribbly. Made with squiggly lines.
+          © 2026 ProbabliDraw. Made with squiggly lines.
         </p>
         <div className="flex gap-5 text-sm">
           <a href="#" className="hover:text-purple-600">

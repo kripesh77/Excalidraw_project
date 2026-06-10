@@ -27,7 +27,7 @@ function Logo() {
         />
       </svg>
       <span className="font-[Caveat,ui-sans-serif] text-2xl font-bold">
-        Scribbly
+        ProbabliDraw
       </span>
     </Link>
   );

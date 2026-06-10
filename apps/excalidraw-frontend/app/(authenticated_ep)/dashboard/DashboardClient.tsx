@@ -91,7 +91,7 @@ export default function DashboardClient({ rooms }: { rooms: Room[] }) {
       <div className="min-h-screen bg-[#fdfcf7] text-[#1a1a2e]">
         <header className="flex flex-wrap items-center justify-between px-6 py-5">
           <Link href="/" className="font-bold text-xl">
-            Scribbly
+            ProbabliDraw
           </Link>
 
           <div className="flex items-center gap-3">
