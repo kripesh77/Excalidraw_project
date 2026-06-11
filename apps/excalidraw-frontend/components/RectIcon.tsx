@@ -1,4 +1,4 @@
-import { IconProps } from "./ExcaliCanvas";
+import { IconProps } from "@/hooks/useExcaliCanvas";
 
 export const RectIcon = ({ selected = false, onSelect }: IconProps) => {
   return (

@@ -1,4 +1,4 @@
-import { IconProps } from "./ExcaliCanvas";
+import { IconProps } from "@/hooks/useExcaliCanvas";
 
 export const CircleIcon = ({ selected = false, onSelect }: IconProps) => {
   return (

@@ -1,3 +1,5 @@
+// proxy.ts
+
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isTokenExpired } from "./lib/auth.server";
@@ -31,8 +33,10 @@ async function handleAuth(request: NextRequest) {
 
       if (!res.ok) {
         const response = NextResponse.redirect(new URL("/signin", request.url));
+
         response.cookies.delete("accessToken");
         response.cookies.delete("refreshToken");
+
         return response;
       }
 
@@ -44,18 +48,23 @@ async function handleAuth(request: NextRequest) {
       }
 
       const response = NextResponse.next();
+
       response.cookies.set("accessToken", accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV !== "development",
         sameSite: "lax",
         path: "/",
       });
+
       return response;
     } catch (error) {
-      console.error("Middleware refresh error:", error);
+      console.error("Proxy refresh error:", error);
+
       const response = NextResponse.redirect(new URL("/signin", request.url));
+
       response.cookies.delete("accessToken");
       response.cookies.delete("refreshToken");
+
       return response;
     }
   }
@@ -63,7 +72,7 @@ async function handleAuth(request: NextRequest) {
   return NextResponse.next();
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (!isProtected(pathname)) {
