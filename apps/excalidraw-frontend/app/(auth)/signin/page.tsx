@@ -105,10 +105,10 @@ export default function SignIn() {
 
           <button
             type="submit"
-            className="sketch cursor-pointer mt-1 bg-purple-600 px-5 py-3 text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
+            className="sketch disabled:cursor-not-allowed cursor-pointer mt-1 bg-purple-600 px-5 py-3 text-sm font-bold text-white transition-transform hover:-translate-y-0.5"
             disabled={isPending}
           >
-            Sign in →
+            {isPending ? "Signing in..." : "Sign in →"}
           </button>
         </form>
 

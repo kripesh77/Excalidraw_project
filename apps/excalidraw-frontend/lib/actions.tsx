@@ -162,6 +162,9 @@ export async function createRoom(
     });
 
   try {
+    if (!roomName) {
+      return { error: { create: "Room name can't be empty" } };
+    }
     let response = await makeRequest(accessToken);
 
     if (response.status === 401) {
@@ -217,6 +220,9 @@ export async function joinRoom(
     });
 
   try {
+    if (!slug) {
+      return { error: { join: "Please enter the room id to join" } };
+    }
     let response = await makeRequest(accessToken);
 
     if (response.status === 401) {

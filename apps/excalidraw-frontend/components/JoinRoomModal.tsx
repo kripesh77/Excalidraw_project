@@ -6,7 +6,7 @@ import type { JoinRoomActionState } from "@/lib/types";
 
 export const JoinRoomModal = ({ onSuccess }: { onSuccess?: () => void }) => {
   const router = useRouter();
-  const [data, action] = useActionState(
+  const [data, action, isPending] = useActionState(
     async (state: JoinRoomActionState | undefined, formData: FormData) => {
       const slug = String(formData.get("join") ?? "").trim();
       const result = await joinRoom(state, formData);
@@ -27,8 +27,11 @@ export const JoinRoomModal = ({ onSuccess }: { onSuccess?: () => void }) => {
           name="join"
           placeholder="Enter the room Id"
         />
-        <button className="sketch cursor-pointer bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5">
-          Join Room
+        <button
+          className="sketch cursor-pointer bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
+          disabled={isPending}
+        >
+          {isPending ? "Joining..." : "Join Room"}
         </button>
       </div>
     </form>
