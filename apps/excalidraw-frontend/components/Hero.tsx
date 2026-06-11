@@ -47,7 +47,7 @@ export default function Hero() {
             </a>
           </div>
           <p className="mt-5 text-sm text-slate-600">
-            No account needed. Open-source. End-to-end encrypted rooms.
+            Open-source. End-to-end encrypted rooms.
           </p>
         </div>
         <CanvasPreview />

@@ -154,7 +154,7 @@ export function WsProvider({
       if (!slug || !wsRef.current) return;
       if (wsRef.current.readyState !== WebSocket.OPEN) return;
       desiredRoomsRef.current.add(slug);
-      setTimeout(() => sendData({ type: "join_room", slug }), 200);
+      setTimeout(() => sendData({ type: "join_room", slug }), 300);
     },
     [sendData],
   );

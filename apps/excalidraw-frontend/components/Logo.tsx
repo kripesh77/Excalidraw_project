@@ -1,6 +1,8 @@
+import Link from "next/link";
+
 export default function Logo() {
   return (
-    <a href="/" className="flex items-center gap-2 text-[#1a1a2e]">
+    <Link href="/" className="flex items-center gap-2 text-[#1a1a2e]">
       <svg
         width="36"
         height="36"
@@ -27,6 +29,6 @@ export default function Logo() {
       <span className="font-[Caveat,ui-sans-serif] text-2xl font-bold">
         ProbabliDraw
       </span>
-    </a>
+    </Link>
   );
 }
