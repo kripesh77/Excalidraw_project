@@ -157,7 +157,10 @@ export function WsProvider({
     (slug: string) => {
       if (!slug) return;
       desiredRoomsRef.current.add(slug);
-      sendData({ type: "join_room", slug });
+      const timeout = setTimeout(
+        () => sendData({ type: "join_room", slug }),
+        100,
+      );
     },
     [sendData],
   );

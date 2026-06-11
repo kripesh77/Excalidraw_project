@@ -3,7 +3,8 @@ import { ButtonIcon } from "./ButtonIcon";
 import { CircleIcon } from "./CircleIcon";
 import { LineIcon } from "./LineIcon";
 import { RectIcon } from "./RectIcon";
-import { Tool } from "./ExcaliCanvas";
+import { HandIcon } from "./HandIcon";
+import { Tool } from "@/hooks/useExcaliCanvas";
 
 export default function ExcaliSelector({
   selectedTool,
@@ -15,6 +16,12 @@ export default function ExcaliSelector({
   return (
     <div className="fixed left-1/2 top-10 -translate-1/2">
       <div className="flex gap-2 bg-[#ffffff] shadow rounded-sm items-center justify-center">
+        <ButtonIcon>
+          <HandIcon
+            selected={selectedTool === "pan"}
+            onSelect={handleSelected}
+          />
+        </ButtonIcon>
         <ButtonIcon>
           <RectIcon
             selected={selectedTool === "rect"}
