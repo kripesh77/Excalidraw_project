@@ -61,6 +61,6 @@ jobs:
             sudo docker run -d \
              --name http-backend \
              -p 8000:8000 \
-             --env-file /home/ubuntu/app/backend.env \
+             --env-file /home/${{ secrets.SERVER_USER }}/app/backend.env \
              --restart unless-stopped \
              ${{ secrets.DOCKERHUB_USERNAME }}/http-backend:${{ github.sha }}
