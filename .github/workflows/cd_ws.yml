@@ -11,6 +11,7 @@ on:
       - "packages/typescript-config/**"
       - "packages/redis/**"
       - "packages/kafka/**"
+      - "packages/validators/**"
       - ".github/workflows/cd_ws.yml"
 
 jobs:

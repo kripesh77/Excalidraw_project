@@ -10,6 +10,7 @@ on:
       - "packages/typescript-config/**"
       - "packages/db/**"
       - "packages/validators/**"
+      - ".github/workflows/cd_backend.yml"
 
 jobs:
   build-and-deploy:
@@ -46,9 +47,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            mkdir -p /home/ubuntu/app
+            mkdir -p /home/${{ secrets.SERVER_USER }}/app
 
-            cat > /home/ubuntu/app/backend.env << 'EOF'
+            cat > /home/${{ secrets.SERVER_USER }}/app/backend.env << 'EOF'
             ${{ secrets.BACKEND_ENV_FILE }}
             EOF
 
