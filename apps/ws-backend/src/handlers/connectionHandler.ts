@@ -62,6 +62,43 @@ function removeUser(ws: WebSocket) {
   userMap.delete(ws);
 }
 
+// Extracted join room logic
+async function joinRoom(
+  user: IUser,
+  slug: string,
+  deps: SocketDeps,
+): Promise<boolean> {
+  // Validate slug
+  if (!slug) return false;
+
+  // Check membership
+  const isMember = await isUserVerifiedMember(deps.prisma, user.userId, slug);
+
+  if (!isMember) {
+    user.ws.send(
+      JSON.stringify({
+        type: "join_room_denied",
+        slug,
+        message: "Not a member",
+      }),
+    );
+    return false;
+  }
+
+  // Add to room
+  addToRoom(user, slug);
+
+  user.ws.send(
+    JSON.stringify({
+      type: "join_room_ack",
+      slug,
+      message: "Joined room successfully",
+    }),
+  );
+
+  return true;
+}
+
 export async function handleConnection(
   ws: WebSocket,
   req: IncomingMessage,
@@ -127,16 +164,14 @@ export async function handleConnection(
 
       if (type === "chat") {
         if (!slug || !message) return;
-        if (!user.rooms.has(slug)) return;
 
-        await deps.prisma.chat.create({
-          data: {
-            slug,
-            message: JSON.stringify(message),
-            senderId: id,
-          },
-        });
+        // Ensure user is in the room
+        if (!user.rooms.has(slug)) {
+          const joined = await joinRoom(user, slug, deps);
+          if (!joined) return; // stop the flow if join failed
+        }
 
+        // Now user is definitely in the room
         const payload = JSON.stringify({
           type: "chat",
           slug,
@@ -149,11 +184,7 @@ export async function handleConnection(
             produceMessage({ slug, message, id }),
           ]);
         } catch (error) {
-          console.warn("Redis publish failed", {
-            slug,
-            userId: id,
-            error,
-          });
+          console.warn("Redis publish failed", { slug, userId: id, error });
         }
       }
     });

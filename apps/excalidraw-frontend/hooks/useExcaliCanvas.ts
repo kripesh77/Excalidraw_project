@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useWs } from "@/context/wsContext";
 
 import { renderCanvas } from "@/utils/renderCanvas";
@@ -75,11 +75,7 @@ export function useExcaliCanvas(initialMessages: string[] = []) {
   const didLoadHistoryRef = useRef(false);
 
   const params = useParams<{ slug: string }>();
-  const router = useRouter();
   const { joinRoom, leaveRoom, sendData, subscribe, connectionState } = useWs();
-
-  const MIN_ZOOM = 0.25;
-  const MAX_ZOOM = 4;
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;

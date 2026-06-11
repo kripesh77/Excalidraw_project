@@ -90,12 +90,10 @@ export function WsProvider({
       setConnectionState("connected");
       reconnectAttemptsRef.current = 0;
 
-      // Join all desired rooms on new connection
       desiredRoomsRef.current.forEach((slug) => {
         sendData({ type: "join_room", slug });
       });
 
-      // Flush message queue
       messageQueueRef.current.forEach((msg) => ws.send(msg));
       messageQueueRef.current = [];
     };
@@ -114,12 +112,10 @@ export function WsProvider({
       wsRef.current = null;
       setConnectionState("disconnected");
 
-      // Don't reconnect on normal closure or if the token is gone
       if (event.code === 1000 || !token) {
         return;
       }
 
-      // Exponential backoff for reconnection
       if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
         const delay =
           RECONNECT_INTERVAL_MS * (reconnectAttemptsRef.current + 1);
@@ -155,12 +151,10 @@ export function WsProvider({
 
   const joinRoom = useCallback(
     (slug: string) => {
-      if (!slug) return;
+      if (!slug || !wsRef.current) return;
+      if (wsRef.current.readyState !== WebSocket.OPEN) return;
       desiredRoomsRef.current.add(slug);
-      const timeout = setTimeout(
-        () => sendData({ type: "join_room", slug }),
-        100,
-      );
+      setTimeout(() => sendData({ type: "join_room", slug }), 200);
     },
     [sendData],
   );
