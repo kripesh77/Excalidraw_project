@@ -9,7 +9,7 @@ import { mailService } from "./infrastructure/mail/mail.container.js";
 registerEventListeners({
   eventBus,
   mailService,
-  config: { BACKEND_URL: process.env.BACKEND_URL! },
+  config: { FRONTEND_URL: process.env.FRONTEND_URL! },
 });
 
 const app: Express = express();

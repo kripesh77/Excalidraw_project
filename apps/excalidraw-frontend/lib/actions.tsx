@@ -56,6 +56,13 @@ export async function signin(_: SigninActionState, formData: FormData) {
         };
         cookieStore.delete("auth_token");
       }
+
+      if (json?.message.startsWith("Please")) {
+        errors = {
+          email: "Please verify your email first",
+        };
+        cookieStore.delete("auth_token");
+      }
       return {
         error: errors,
         formData: { email, password },
