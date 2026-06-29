@@ -1,8 +1,9 @@
-import { Kafka, type Producer } from "kafkajs";
-import fs from "fs";
 import dotenv from "dotenv";
-import { prisma } from "@repo/db";
 dotenv.config();
+
+import { Kafka, type Producer } from "kafkajs";
+import { prisma } from "@repo/db";
+import { redisPublish } from "@repo/redis";
 
 interface IMessageProp {
   message: String;
@@ -10,6 +11,50 @@ interface IMessageProp {
   slug: string;
   value?: string;
 }
+
+type Point = { x: number; y: number };
+type Shape =
+  | {
+      id: string;
+      type: "rect";
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+    }
+  | {
+      id: string;
+      type: "ellipse";
+      centerX: number;
+      centerY: number;
+      radiusX: number;
+      radiusY: number;
+    }
+  | {
+      id: string;
+      type: "line";
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+    }
+  | { id: string; type: "free"; points: Point[] };
+
+export type KafkaMessage =
+  | {
+      topic: "SHAPES";
+      slug: string;
+      senderId: string;
+      action: "draw";
+      shape: Shape;
+    }
+  | {
+      topic: "SHAPES";
+      slug: string;
+      senderId: string;
+      action: "delete";
+      shapeIds: string[];
+    };
 
 const { KAFKA_HOST, KAFKA_PORT, KAFKA_USERNAME, KAFKA_PASSWORD } = process.env;
 
@@ -43,52 +88,94 @@ export const createProducer = async function () {
   return producer;
 };
 
-export const produceMessage = async function (message: IMessageProp) {
+export const produceMessage = async (msg: KafkaMessage) => {
   const producer = await createProducer();
   await producer.send({
+    topic: msg.topic,
     messages: [
       {
         partition: 0,
-        key: `message-${Date.now()}`,
-        value: JSON.stringify(message),
+        key: `${msg.topic}-${Date.now()}`,
+        value: JSON.stringify(msg),
       },
     ],
-    topic: "MESSAGES",
   });
 };
 
-export const startMessageConsumer = async function () {
-  console.log("Consumer is running");
-  const consumer = kafka.consumer({ groupId: "default" });
+export const startShapeConsumer = async () => {
+  console.log("Shape consumer is running");
+  const consumer = kafka.consumer({ groupId: "shapes-group" });
   await consumer.connect();
-  await consumer.subscribe({
-    topic: "MESSAGES",
-    fromBeginning: true,
-  });
+  await consumer.subscribe({ topic: "SHAPES", fromBeginning: true });
 
   await consumer.run({
     autoCommit: true,
     autoCommitInterval: 5,
     eachMessage: async ({ message: data, pause }) => {
-      console.log("New message received");
       if (!data.value) return;
-      const { slug, message, id } = JSON.parse(
-        data.value?.toString(),
-      ) as unknown as IMessageProp;
+
+      const msg = JSON.parse(data.value.toString()) as
+        | {
+            topic: "SHAPES";
+            action: "draw";
+            slug: string;
+            senderId: string;
+            shape: Shape;
+          }
+        | {
+            topic: "SHAPES";
+            action: "delete";
+            slug: string;
+            senderId: string;
+            shapeIds: string[];
+          };
+
       try {
-        await prisma.chat.create({
-          data: {
-            slug,
-            message: JSON.stringify(message),
-            senderId: id,
-          },
-        });
+        if (msg.action === "draw") {
+          await prisma.shape.upsert({
+            where: { id: msg.shape.id },
+            update: {
+              data: msg.shape,
+              type: msg.shape.type,
+            },
+            create: {
+              id: msg.shape.id,
+              type: msg.shape.type,
+              data: msg.shape,
+              slug: msg.slug,
+              creatorId: msg.senderId,
+            },
+          });
+
+          await redisPublish.publish(
+            `room:${msg.slug}`,
+            JSON.stringify({
+              type: "shape_saved", // client can use this to confirm persistence
+              slug: msg.slug,
+              shapeId: msg.shape.id,
+            }),
+          );
+        } else if (msg.action === "delete") {
+          await prisma.shape.deleteMany({
+            where: {
+              id: { in: msg.shapeIds },
+              slug: msg.slug, // preventing cross-room deletion
+            },
+          });
+
+          await redisPublish.publish(
+            `room:${msg.slug}`,
+            JSON.stringify({
+              type: "shapes_delete_confirmed",
+              slug: msg.slug,
+              shapeIds: msg.shapeIds,
+            }),
+          );
+        }
       } catch (e) {
-        console.log("Something went wrong");
+        console.error("Shape consumer error", e);
         pause();
-        setTimeout(() => {
-          consumer.resume([{ topic: "MESSAGES" }]);
-        }, 60 * 1000);
+        setTimeout(() => consumer.resume([{ topic: "SHAPES" }]), 60_000);
       }
     },
   });

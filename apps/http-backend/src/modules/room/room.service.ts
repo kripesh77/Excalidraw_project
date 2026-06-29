@@ -74,8 +74,8 @@ export class RoomService implements IRoomService {
     });
   }
 
-  async getChats(page: number, limit: number, slug: string, user: User) {
-    return this.prisma.chat.findMany({
+  async getShapes(page: number, limit: number, slug: string, user: User) {
+    return this.prisma.shape.findMany({
       where: {
         slug,
         room: {

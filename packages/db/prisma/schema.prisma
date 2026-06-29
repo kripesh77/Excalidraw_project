@@ -28,7 +28,7 @@ model User {
   updatedAt                DateTime? @updatedAt
 
   memberships              RoomMember[]
-  chats                    Chat[]
+  shapes    Shape[]
 }
 
 model Room {
@@ -37,7 +37,7 @@ model Room {
   createdAt DateTime  @default(now())
 
   members   RoomMember[]
-  chats     Chat[]
+  shapes    Shape[]
 }
 
 model RoomMember {
@@ -54,14 +54,18 @@ model RoomMember {
   @@id([userId, roomId])
 }
 
-model Chat {
-  id        Int       @id @default(autoincrement())
-  message   String
-  createdAt DateTime  @default(now())
 
-  senderId  String    @db.Uuid
-  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+model Shape {
+  id        String   @id           // client-generated UUID
+  type      String                 // "rect" | "ellipse" | "line" | "free"
+  data      Json                   // full shape payload
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   slug      String
-  room      Room      @relation(fields: [slug], references: [slug], onDelete: Cascade)
+  room      Room     @relation(fields: [slug], references: [slug], onDelete: Cascade)
+
+  creatorId String   @db.Uuid
+  creator   User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
 }

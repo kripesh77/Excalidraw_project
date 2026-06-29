@@ -6,10 +6,10 @@ import { SocketService } from "./services/socketService.js";
 import { prisma } from "@repo/db";
 import { JwtUtil } from "@repo/auth-utils";
 import { config } from "./utils/jwtConfig.js";
-import { startMessageConsumer } from "@repo/kafka";
+import { startShapeConsumer } from "@repo/kafka";
 
 function init() {
-  startMessageConsumer();
+  startShapeConsumer();
   const wss = new WebSocketServer({ port: 8080 });
 
   const jwtUtil = new JwtUtil(config);

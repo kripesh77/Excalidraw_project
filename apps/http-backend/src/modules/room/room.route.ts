@@ -16,6 +16,6 @@ router.get("/", authenticate, roomController.getJoinedRooms);
 
 router.post("/join/:slug", authenticate, roomController.joinRoom);
 
-router.get("/chats/:slug", authenticate, roomController.getRoomChats);
+router.get("/shapes/:slug", authenticate, roomController.getRoomShapes);
 
 export { router as roomRouter };

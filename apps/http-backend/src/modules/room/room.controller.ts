@@ -40,7 +40,7 @@ export class RoomController {
     },
   );
 
-  getRoomChats = catchAsync(
+  getRoomShapes = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
       if (!req.user) return next(new AppError("User doesn't exists", 404));
       const page = Number(req.query.page) || 1;
@@ -49,7 +49,7 @@ export class RoomController {
       if (Array.isArray(slug) || !slug) {
         return next(new AppError("User doesn't exists", 404));
       }
-      const chats = await this.roomService.getChats(
+      const shapes = await this.roomService.getShapes(
         page,
         limit,
         slug,
@@ -57,7 +57,7 @@ export class RoomController {
       );
       res.json({
         status: "success",
-        data: chats,
+        data: shapes,
       });
     },
   );

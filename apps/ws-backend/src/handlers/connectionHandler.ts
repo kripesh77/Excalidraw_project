@@ -62,16 +62,13 @@ function removeUser(ws: WebSocket) {
   userMap.delete(ws);
 }
 
-// Extracted join room logic
 async function joinRoom(
   user: IUser,
   slug: string,
   deps: SocketDeps,
 ): Promise<boolean> {
-  // Validate slug
   if (!slug) return false;
 
-  // Check membership
   const isMember = await isUserVerifiedMember(deps.prisma, user.userId, slug);
 
   if (!isMember) {
@@ -85,7 +82,6 @@ async function joinRoom(
     return false;
   }
 
-  // Add to room
   addToRoom(user, slug);
 
   user.ws.send(
@@ -98,6 +94,63 @@ async function joinRoom(
 
   return true;
 }
+
+async function ensureInRoom(
+  user: IUser,
+  slug: string,
+  deps: SocketDeps,
+): Promise<boolean> {
+  if (user.rooms.has(slug)) return true;
+
+  const isMember = await isUserVerifiedMember(deps.prisma, user.userId, slug);
+  if (!isMember) {
+    user.ws.send(
+      JSON.stringify({
+        type: "join_room_denied",
+        slug,
+        message: "Not a member",
+      }),
+    );
+    return false;
+  }
+
+  addToRoom(user, slug);
+  return true;
+}
+
+type WsMessageType =
+  | { type: "join_room"; slug: string }
+  | { type: "leave_room"; slug: string }
+  | { type: "draw_shape"; slug: string; shape: Shape }
+  | { type: "delete_shapes"; slug: string; shapeIds: string[] };
+
+type Point = { x: number; y: number };
+type Shape =
+  | {
+      id: string;
+      type: "rect";
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+    }
+  | {
+      id: string;
+      type: "ellipse";
+      centerX: number;
+      centerY: number;
+      radiusX: number;
+      radiusY: number;
+    }
+  | {
+      id: string;
+      type: "line";
+      startX: number;
+      startY: number;
+      endX: number;
+      endY: number;
+    }
+  | { id: string; type: "free"; points: Point[] };
 
 export async function handleConnection(
   ws: WebSocket,
@@ -119,7 +172,7 @@ export async function handleConnection(
     ws.on("error", () => removeUser(ws));
 
     ws.on("message", async (data: string) => {
-      let parsed: any;
+      let parsed: WsMessageType;
 
       try {
         parsed = JSON.parse(data);
@@ -128,9 +181,10 @@ export async function handleConnection(
         return;
       }
 
-      const { type, slug, message } = parsed;
+      const { type } = parsed;
 
       if (type === "join_room") {
+        const { slug } = parsed;
         if (!slug) {
           ws.send(JSON.stringify({ type: "join_room_denied" }));
           return;
@@ -156,42 +210,86 @@ export async function handleConnection(
       }
 
       if (type === "leave_room") {
+        const { slug } = parsed;
         if (!slug) return;
         removeFromRoom(user, slug);
         ws.send(JSON.stringify({ type: "room_left_successfully" }));
         return;
       }
 
-      if (type === "chat") {
-        if (!slug || !message) return;
+      if (type === "draw_shape") {
+        const { slug, shape } = parsed;
+        if (!slug || !shape?.id || !shape?.type) return;
 
-        // Ensure user is in the room
-        if (!user.rooms.has(slug)) {
-          const joined = await joinRoom(user, slug, deps);
-          if (!joined) return; // stop the flow if join failed
-        }
+        const allowed = await ensureInRoom(user, slug, deps);
+        if (!allowed) return;
 
-        // Now user is definitely in the room
         const payload = JSON.stringify({
-          type: "chat",
+          type: "shape_drawn",
           slug,
-          message,
+          shape,
+          senderId: id,
         });
 
         try {
           await Promise.all([
             redisPublish.publish(`room:${slug}`, payload),
-            produceMessage({ slug, message, id }),
+            produceMessage({
+              topic: "SHAPES",
+              slug,
+              senderId: id,
+              action: "draw",
+              shape,
+            }),
           ]);
         } catch (error) {
-          console.warn("Redis publish failed", { slug, userId: id, error });
+          console.warn("draw_shape publish failed", {
+            slug,
+            userId: id,
+            error,
+          });
         }
+        return;
+      }
+
+      if (type === "delete_shapes") {
+        const { slug, shapeIds } = parsed;
+        if (!slug || !Array.isArray(shapeIds) || shapeIds.length === 0) return;
+
+        const allowed = await ensureInRoom(user, slug, deps);
+        if (!allowed) return;
+
+        const payload = JSON.stringify({
+          type: "shapes_deleted",
+          slug,
+          shapeIds,
+          senderId: id,
+        });
+
+        try {
+          await Promise.all([
+            redisPublish.publish(`room:${slug}`, payload),
+            produceMessage({
+              topic: "SHAPES",
+              slug,
+              senderId: id,
+              action: "delete",
+              shapeIds,
+            }),
+          ]);
+        } catch (error) {
+          console.warn("delete_shapes publish failed", {
+            slug,
+            userId: id,
+            error,
+          });
+        }
+        return;
       }
     });
 
     ws.send(JSON.stringify({ type: "connected" }));
   } catch (err) {
-    // log auth/connect errors to help debug frequent reconnects in production
     try {
       console.warn("WS connection rejected", {
         url: req.url,
@@ -199,7 +297,7 @@ export async function handleConnection(
         error: (err as Error).message,
       });
     } catch {
-      // ignore logging errors
+      ws.close(1008, "Unauthorized");
     }
     ws.close(1008, "Unauthorized");
   }

@@ -245,6 +245,9 @@ importers:
 
   packages/kafka:
     dependencies:
+      '@repo/redis':
+        specifier: workspace:*
+        version: link:../redis
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
