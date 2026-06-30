@@ -11,7 +11,6 @@ export function useText(
   const [textSession, setTextSession] = useState<TextEditSession | null>(null);
 
   const openTextEditor = useCallback((session: TextEditSession) => {
-    console.log("openTextEditor called, setting session:", session);
     setTextSession(session);
   }, []);
 

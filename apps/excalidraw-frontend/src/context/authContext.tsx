@@ -23,7 +23,6 @@ export const AuthProvider = ({
   children: ReactNode;
   token: string;
 }) => {
-  console.log(token);
   const [accessToken, setAccessToken] = useState<string>(token);
 
   const value = { accessToken, setAccessToken }; // ideally we needed to memoize the object, but now react v19+ compiler is taking care of memoization

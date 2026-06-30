@@ -12,6 +12,10 @@ type SelectionRect = {
 let dragStart: Point | null = null;
 let selectionRect: SelectionRect | null = null;
 
+let moveStart: Point | null = null;
+let lastMovePoint: Point | null = null;
+let isDraggingShapes = false;
+
 function overlaps(shape: Shape, rect: SelectionRect): boolean {
   const rMinX = Math.min(rect.startX, rect.endX);
   const rMaxX = Math.max(rect.startX, rect.endX);
@@ -61,16 +65,24 @@ export const selectTool: ToolHandler = {
     const hit = hitTest(point, ctx.scene.getShapes());
 
     if (hit) {
+      const current = ctx.scene.getSelectedIds();
       if (e.shiftKey) {
-        const current = ctx.scene.getSelectedIds();
         if (current.has(hit.id)) {
           const next = [...current].filter((id) => id !== hit.id);
           ctx.scene.setSelectedIds(next);
         } else {
           ctx.scene.setSelectedIds([...current, hit.id]);
         }
+        dragStart = null;
+        moveStart = null;
       } else {
-        ctx.scene.setSelectedIds([hit.id]);
+        if (!current.has(hit.id)) {
+          ctx.scene.setSelectedIds([hit.id]);
+        }
+        moveStart = point;
+        lastMovePoint = point;
+        isDraggingShapes = true;
+        dragStart = null;
       }
       dragStart = null;
     } else {
@@ -82,12 +94,25 @@ export const selectTool: ToolHandler = {
         endX: point.x,
         endY: point.y,
       };
+      moveStart = null;
+      isDraggingShapes = false;
     }
 
     ctx.scheduleRender();
   },
 
   onPointerMove(point, e, ctx) {
+    if (isDraggingShapes && moveStart && lastMovePoint) {
+      const dx = point.x - lastMovePoint.x;
+      const dy = point.y - lastMovePoint.y;
+
+      const selectedIds = ctx.scene.getSelectedIds();
+      ctx.scene.translateSelected(selectedIds, dx, dy);
+
+      lastMovePoint = point;
+      ctx.scheduleRender();
+      return;
+    }
     if (!dragStart) return;
 
     selectionRect = {
@@ -115,22 +140,19 @@ export const selectTool: ToolHandler = {
   },
 
   onPointerUp(point, e, ctx) {
-    if (!dragStart || !selectionRect) return;
+    if (isDraggingShapes) {
+      const selectedIds = ctx.scene.getSelectedIds();
+      const movedShapes = ctx.scene
+        .getShapes()
+        .filter((s) => selectedIds.has(s.id));
 
-    const hits = ctx.scene
-      .getShapes()
-      .filter((s) => overlaps(s, selectionRect!));
+      movedShapes.forEach((shape) => ctx.send(shape));
 
-    if (hits.length > 0) {
-      if (e.shiftKey) {
-        const current = [...ctx.scene.getSelectedIds()];
-        const newIds = hits
-          .map((s) => s.id)
-          .filter((id) => !current.includes(id));
-        ctx.scene.setSelectedIds([...current, ...newIds]);
-      } else {
-        ctx.scene.setSelectedIds(hits.map((s) => s.id));
-      }
+      moveStart = null;
+      lastMovePoint = null;
+      isDraggingShapes = false;
+      ctx.scheduleRender();
+      return;
     }
 
     dragStart = null;
@@ -141,6 +163,9 @@ export const selectTool: ToolHandler = {
   onDeactivate(ctx) {
     dragStart = null;
     selectionRect = null;
+    moveStart = null;
+    lastMovePoint = null;
+    isDraggingShapes = false;
     ctx.scene.clearSelection();
     ctx.scheduleRender();
   },
