@@ -6,6 +6,7 @@ import { ellipseTool } from "./ellipseTool";
 import { lineTool } from "./lineTool";
 import { freeTool } from "./freeTool";
 import { selectTool } from "./selectTool";
+import { textTool } from "./textTool";
 
 export const toolRegistry: Record<Tool, ToolHandler> = {
   pan: panTool,
@@ -14,4 +15,5 @@ export const toolRegistry: Record<Tool, ToolHandler> = {
   line: lineTool,
   free: freeTool,
   select: selectTool,
+  text: textTool,
 };

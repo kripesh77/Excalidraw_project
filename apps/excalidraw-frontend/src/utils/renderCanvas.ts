@@ -4,6 +4,7 @@ import {
   EllipseShape,
   LineShape,
   FreeShape,
+  TextShape,
 } from "@/src/types/shapes";
 import { SceneStore } from "@/src/scene/SceneStore";
 import { Camera } from "@/src/scene/Camera";
@@ -12,7 +13,9 @@ import { SelectionRect } from "@/src/tools/types";
 function drawRect(ctx: CanvasRenderingContext2D, s: RectShape) {
   ctx.strokeStyle = "#1a1a2e";
   ctx.lineWidth = 2;
-  ctx.strokeRect(s.startX, s.startY, s.endX - s.startX, s.endY - s.startY);
+  ctx.beginPath();
+  ctx.roundRect(s.startX, s.startY, s.endX - s.startX, s.endY - s.startY, 12);
+  ctx.stroke();
 }
 
 function drawEllipse(ctx: CanvasRenderingContext2D, s: EllipseShape) {
@@ -66,6 +69,16 @@ function drawSelectionBox(ctx: CanvasRenderingContext2D, s: Shape) {
     y = s.centerY - s.radiusY - PAD;
     w = s.radiusX * 2 + PAD * 2;
     h = s.radiusY * 2 + PAD * 2;
+  } else if (s.type === "text") {
+    const charWidth = s.fontSize * 0.6;
+    const lineHeight = s.fontSize * 1.4;
+    const lines = s.text.split("\n");
+    const width = Math.max(...lines.map((l) => l.length)) * charWidth;
+    const height = lines.length * lineHeight;
+    x = s.x - PAD;
+    y = s.y - PAD;
+    w = width + PAD * 2;
+    h = height + PAD * 2;
   } else {
     const xs = s.points.map((p) => p.x);
     const ys = s.points.map((p) => p.y);
@@ -79,11 +92,24 @@ function drawSelectionBox(ctx: CanvasRenderingContext2D, s: Shape) {
   ctx.setLineDash([]);
 }
 
+function drawText(ctx: CanvasRenderingContext2D, s: TextShape) {
+  ctx.fillStyle = "#1a1a2e";
+  ctx.font = `${s.fontSize}px sans-serif`;
+  ctx.textBaseline = "top";
+
+  const lineHeight = s.fontSize * 1.4;
+  const lines = s.text.split("\n");
+  lines.forEach((line, i) => {
+    ctx.fillText(line, s.x, s.y + i * lineHeight);
+  });
+}
+
 function drawShape(ctx: CanvasRenderingContext2D, shape: Shape) {
   if (shape.type === "rect") drawRect(ctx, shape);
   if (shape.type === "ellipse") drawEllipse(ctx, shape);
   if (shape.type === "line") drawLine(ctx, shape);
   if (shape.type === "free") drawFree(ctx, shape);
+  if (shape.type === "text") drawText(ctx, shape);
 }
 
 export function renderCanvas(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, MouseEvent } from "react";
 import { useCanvasSetup } from "@/src/hooks/useCanvasSetup";
 import { useCamera } from "@/src/hooks/useCamera";
 import { useToolHandler } from "@/src/hooks/useToolHandler";
@@ -10,7 +10,8 @@ import { SceneStore } from "@/src/scene/SceneStore";
 import { Toolbar } from "@/src/components/Toolbar";
 import { Shape, Tool } from "@/src/types/shapes";
 import { toolRegistry } from "@/src/tools";
-import { renderCanvas } from "@/src/utils/renderCanvas";
+import { TextEditor } from "@/src/components/TextEditor";
+import { useText } from "@/src/hooks/useText";
 
 export default function CanvasClient({
   slug,
@@ -21,8 +22,8 @@ export default function CanvasClient({
 }) {
   const sceneRef = useRef(new SceneStore(shapes));
 
-  const [tool, setToolState] = useState<Tool>("rect");
-  const toolRef = useRef<Tool>("rect");
+  const [tool, setToolState] = useState<Tool>("pan");
+  const toolRef = useRef<Tool>("pan");
 
   const { cameraRef, screenToWorld, applyZoom } = useCamera();
   const { canvasRef, ctxRef } = useCanvasSetup(sceneRef, cameraRef, toolRef);
@@ -40,6 +41,12 @@ export default function CanvasClient({
     scheduleRender,
   );
 
+  const { textSession, openTextEditor, commitText, cancelText } = useText(
+    sceneRef,
+    sendShape,
+    scheduleRender,
+  );
+
   const { onMouseDown, onMouseMove, onMouseUp } = useToolHandler(
     ctxRef,
     sceneRef,
@@ -48,6 +55,7 @@ export default function CanvasClient({
     tool,
     scheduleRender,
     sendShape,
+    openTextEditor,
   );
 
   useEffect(() => {
@@ -62,13 +70,14 @@ export default function CanvasClient({
         screenToWorld,
         scheduleRender,
         send: sendShape,
+        openTextEditor,
       };
       toolRegistry[toolRef.current].onDeactivate?.(ctx);
       toolRef.current = next;
       setToolState(next);
       scheduleRender();
     },
-    [cameraRef, screenToWorld, scheduleRender, sendShape],
+    [cameraRef, screenToWorld, scheduleRender, sendShape, openTextEditor],
   );
 
   useEffect(() => {
@@ -88,10 +97,35 @@ export default function CanvasClient({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [scheduleRender, deleteSelectedShapes]);
 
-  function handleWheel(e: React.WheelEvent<HTMLCanvasElement>) {
-    e.preventDefault();
-    applyZoom(e.clientX, e.clientY, e.deltaY);
-    scheduleRender();
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    function handleWheelNative(e: WheelEvent) {
+      e.preventDefault();
+      applyZoom(e.clientX, e.clientY, e.deltaY);
+      scheduleRender();
+    }
+
+    canvas.addEventListener("wheel", handleWheelNative, { passive: false });
+    return () => canvas.removeEventListener("wheel", handleWheelNative);
+  }, [applyZoom, scheduleRender, canvasRef]);
+
+  function handleMouseUp(
+    e: MouseEvent<HTMLCanvasElement, globalThis.MouseEvent>,
+  ) {
+    onMouseUp(e);
+    if (tool === "pan" || tool === "text" || tool === "select") return;
+    setTool("pan");
+  }
+
+  function handleMouseDown(
+    e: MouseEvent<HTMLCanvasElement, globalThis.MouseEvent>,
+  ) {
+    if (textSession) {
+      return;
+    }
+    onMouseDown(e);
   }
 
   const cursor =
@@ -109,12 +143,22 @@ export default function CanvasClient({
       <canvas
         ref={canvasRef}
         className={`block w-screen h-screen ${cursor}`}
-        onMouseDown={onMouseDown}
+        onMouseDown={handleMouseDown}
         onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
+        onMouseUp={handleMouseUp}
         onMouseLeave={onMouseUp}
-        onWheel={handleWheel}
       />
+      {textSession && (
+        <TextEditor
+          screenX={textSession.screenX}
+          screenY={textSession.screenY}
+          initialValue={textSession.initialValue}
+          fontSize={20}
+          zoom={textSession.zoom}
+          onCommit={commitText}
+          onCancel={cancelText}
+        />
+      )}
     </div>
   );
 }

@@ -29,7 +29,7 @@ export default function Templates() {
             <a
               key={t.name}
               href="#"
-              className="sketch group block aspect-[4/3] overflow-hidden bg-white p-4 transition-transform hover:-translate-y-1"
+              className="sketch group block aspect-4/3 overflow-hidden bg-white p-4 transition-transform hover:-translate-y-1"
               style={{ transform: `rotate(${(i - 1.5) * 0.7}deg)` }}
             >
               <div

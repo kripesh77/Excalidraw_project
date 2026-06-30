@@ -31,5 +31,26 @@ export type FreeShape = {
   points: { x: number; y: number }[];
 };
 
-export type Shape = RectShape | EllipseShape | LineShape | FreeShape;
-export type Tool = "pan" | "rect" | "ellipse" | "line" | "free" | "select";
+export type TextShape = {
+  id: string;
+  type: "text";
+  x: number;
+  y: number;
+  text: string;
+  fontSize: number;
+};
+
+export type Shape =
+  | RectShape
+  | EllipseShape
+  | LineShape
+  | FreeShape
+  | TextShape;
+export type Tool =
+  | "pan"
+  | "rect"
+  | "ellipse"
+  | "line"
+  | "free"
+  | "select"
+  | "text";

@@ -30,6 +30,16 @@ function overlaps(shape: Shape, rect: SelectionRect): boolean {
     sMaxX = shape.centerX + shape.radiusX;
     sMinY = shape.centerY - shape.radiusY;
     sMaxY = shape.centerY + shape.radiusY;
+  } else if (shape.type === "text") {
+    const charWidth = shape.fontSize * 0.6;
+    const lineHeight = shape.fontSize * 1.4;
+    const lines = shape.text.split("\n");
+    const width = Math.max(...lines.map((l) => l.length)) * charWidth;
+    const height = lines.length * lineHeight;
+    sMinX = shape.x;
+    sMaxX = shape.x + width;
+    sMinY = shape.y;
+    sMaxY = shape.y + height;
   } else {
     const xs = shape.points.map((p) => p.x);
     const ys = shape.points.map((p) => p.y);

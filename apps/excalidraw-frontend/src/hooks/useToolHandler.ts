@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect } from "react";
 import { Shape, Tool } from "@/src/types/shapes";
+import { TextEditSession } from "@/src/tools/textTool";
 import { SceneStore } from "@/src/scene/SceneStore";
 import { Camera } from "@/src/scene/Camera";
 import { toolRegistry } from "@/src/tools";
@@ -13,6 +14,7 @@ export function useToolHandler(
   activeTool: Tool,
   scheduleRender: () => void,
   sendShape: (shape: Shape) => void,
+  openTextEditor: (session: TextEditSession) => void,
 ) {
   const activeToolRef = useRef<Tool>(activeTool);
 
@@ -27,8 +29,16 @@ export function useToolHandler(
       screenToWorld,
       scheduleRender,
       send: sendShape,
+      openTextEditor,
     }),
-    [sceneRef, cameraRef, screenToWorld, scheduleRender, sendShape],
+    [
+      sceneRef,
+      cameraRef,
+      screenToWorld,
+      scheduleRender,
+      sendShape,
+      openTextEditor,
+    ],
   );
 
   const onMouseDown = useCallback(

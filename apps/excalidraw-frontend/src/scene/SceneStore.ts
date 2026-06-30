@@ -37,6 +37,10 @@ export class SceneStore {
     return deleted;
   }
 
+  updateShape(shape: Shape): void {
+    this.shapes = this.shapes.map((s) => (s.id === shape.id ? shape : s));
+  }
+
   deleteByIds(ids: string[]) {
     const set = new Set(ids);
     this.shapes = this.shapes.filter((s) => !set.has(s.id));

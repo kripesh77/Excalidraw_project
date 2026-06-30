@@ -1,6 +1,7 @@
 import { Shape, Tool } from "@/src/types/shapes";
 import { SceneStore } from "@/src/scene/SceneStore";
 import { Camera } from "@/src/scene/Camera";
+import { TextEditSession } from "./textTool";
 
 export type Point = { x: number; y: number };
 
@@ -10,6 +11,7 @@ export type ToolContext = {
   screenToWorld: (x: number, y: number) => Point;
   scheduleRender: () => void;
   send: (shape: Shape) => void;
+  openTextEditor: (session: TextEditSession) => void;
 };
 
 export type ToolHandler = {

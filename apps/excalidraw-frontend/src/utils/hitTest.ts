@@ -4,6 +4,7 @@ import {
   EllipseShape,
   LineShape,
   FreeShape,
+  TextShape,
 } from "@/src/types/shapes";
 
 type Point = { x: number; y: number };
@@ -70,8 +71,20 @@ export function hitTest(point: Point, shapes: Shape[]): Shape | null {
             ? hitLine(point, s)
             : s.type === "free"
               ? hitFree(point, s)
-              : false;
+              : s.type === "text"
+                ? hitText(point, s)
+                : false;
     if (hit) return s;
   }
   return null;
+}
+
+function hitText(p: Point, s: TextShape): boolean {
+  const charWidth = s.fontSize * 0.6; // rough estimate
+  const lineHeight = s.fontSize * 1.4;
+  const lines = s.text.split("\n");
+  const width = Math.max(...lines.map((l) => l.length)) * charWidth;
+  const height = lines.length * lineHeight;
+
+  return p.x >= s.x && p.x <= s.x + width && p.y >= s.y && p.y <= s.y + height;
 }
