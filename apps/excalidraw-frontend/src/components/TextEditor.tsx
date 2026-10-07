@@ -56,40 +56,25 @@ export function TextEditor({
     onCommit(ref.current?.value ?? "");
   }
 
-  console.log("TextEditor about to return JSX");
-
   return (
     <textarea
       ref={ref}
       defaultValue={initialValue}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
+      className="fixed m-0 resize-none overflow-hidden whitespace-pre bg-transparent p-0 text-[#1a1a2e] caret-indigo-500 outline-none leading-[1.4] z-50 font-[inherit]"
       style={{
-        position: "fixed",
         left: screenX,
         top: screenY,
-        fontSize: fontSize * zoom,
-        lineHeight: 1.4,
-        minWidth: 4,
-        minHeight: fontSize * zoom * 1.4,
-        padding: 0,
-        margin: 0,
-        outline: "none",
-        background: "transparent",
-        resize: "none",
-        overflow: "hidden",
-        fontFamily: "inherit",
-        color: "#1a1a2e",
-        caretColor: "#6366f1",
-        zIndex: 50,
-        whiteSpace: "pre",
+        fontSize: `${fontSize * zoom}px`,
+        minHeight: `${fontSize * zoom * 1.4}px`,
       }}
       onInput={(e) => {
         const el = e.currentTarget;
         el.style.width = "auto";
         el.style.height = "auto";
-        el.style.width = el.scrollWidth + "px";
-        el.style.height = el.scrollHeight + "px";
+        el.style.width = `${el.scrollWidth}px`;
+        el.style.height = `${el.scrollHeight}px`;
       }}
     />
   );

@@ -25,10 +25,14 @@ export function useShapeSync(
         const exists = sceneRef.current
           .getShapes()
           .some((s) => s.id === shape.id);
-        if (!exists) {
+
+        if (exists) {
+          sceneRef.current.updateShape(shape);
+        } else {
           sceneRef.current.addShape(shape);
-          scheduleRender();
         }
+
+        scheduleRender();
         return;
       }
 

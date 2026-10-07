@@ -46,4 +46,46 @@ export class SceneStore {
     this.shapes = this.shapes.filter((s) => !set.has(s.id));
     ids.forEach((id) => this.selectedIds.delete(id));
   }
+
+  translateShape(shape: Shape, dx: number, dy: number): Shape {
+    switch (shape.type) {
+      case "rect":
+      case "line":
+        return {
+          ...shape,
+          startX: shape.startX + dx,
+          startY: shape.startY + dy,
+          endX: shape.endX + dx,
+          endY: shape.endY + dy,
+        };
+      case "ellipse":
+        return {
+          ...shape,
+          centerX: shape.centerX + dx,
+          centerY: shape.centerY + dy,
+        };
+      case "free":
+        return {
+          ...shape,
+          points: shape.points.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+        };
+      case "text":
+        return {
+          ...shape,
+          x: shape.x + dx,
+          y: shape.y + dy,
+        };
+    }
+  }
+
+  translateSelected(ids: Set<string>, dx: number, dy: number): Shape[] {
+    const moved: Shape[] = [];
+    this.shapes = this.shapes.map((s) => {
+      if (!ids.has(s.id)) return s;
+      const next = this.translateShape(s, dx, dy);
+      moved.push(next);
+      return next;
+    });
+    return moved;
+  }
 }

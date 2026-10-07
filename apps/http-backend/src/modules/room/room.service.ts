@@ -87,7 +87,7 @@ export class RoomService implements IRoomService {
         },
       },
       orderBy: {
-        id: "desc",
+        id: "asc",
       },
       take: limit,
       skip: (page - 1) * limit,
