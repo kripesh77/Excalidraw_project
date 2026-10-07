@@ -19,9 +19,7 @@ export async function GET() {
     if (!accessToken) {
       return NextResponse.json({ error: "could_not_refresh" }, { status: 401 });
     }
-    return NextResponse.redirect(
-      new URL("/dashboard", process.env.NEXT_PUBLIC_APP_URL),
-    );
+    return NextResponse.redirect(new URL("/dashboard", process.env.APP_URL));
   } catch (err) {
     return NextResponse.json({ error: "unexpected" }, { status: 500 });
   }

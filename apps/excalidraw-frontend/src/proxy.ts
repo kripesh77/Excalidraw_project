@@ -19,7 +19,7 @@ async function handleAuth(request: NextRequest) {
   if (!accessToken || isTokenExpired(accessToken)) {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/refresh`,
+        `${process.env.BACKEND_URL}/api/v1/auth/refresh`,
         {
           method: "POST",
           headers: {

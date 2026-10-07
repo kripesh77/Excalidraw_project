@@ -23,7 +23,7 @@ export async function signin(_: SigninActionState, formData: FormData) {
   const password = rawData.password as string;
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/signin`,
+      `${process.env.BACKEND_URL}/api/v1/auth/signin`,
       {
         method: "POST",
         headers: {
@@ -94,7 +94,7 @@ export async function signup(_: SignupActionState, formData: FormData) {
 
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/signup`,
+      `${process.env.BACKEND_URL}/api/v1/auth/signup`,
       {
         method: "POST",
         headers: {
@@ -152,7 +152,7 @@ export async function createRoom(
   }
 
   const makeRequest = (token: string) =>
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/room`, {
+    fetch(`${process.env.BACKEND_URL}/api/v1/room`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -212,7 +212,7 @@ export async function joinRoom(
   }
 
   const makeRequest = (token: string) =>
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/room/join/${slug}`, {
+    fetch(`${process.env.BACKEND_URL}/api/v1/room/join/${slug}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

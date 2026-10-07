@@ -18,8 +18,8 @@ export TURBO_TOKEN=your_vercel_token
 docker build \
  --secret id=turbo_token,env=TURBO_TOKEN \
  --build-arg TURBO_TEAM=my-team \
- --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost:8000 \
- --build-arg NEXT_PUBLIC_APP_URL=http://localhost:3000 \
+ --build-arg BACKEND_URL=http://localhost:8000 \
+ --build-arg APP_URL=http://localhost:3000 \
  --build-arg NEXT_PUBLIC_WS_URL=ws://localhost:8080 \
  -f ./docker/Dockerfile.frontend \
  -t excalidraw-frontend .
