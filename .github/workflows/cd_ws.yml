@@ -62,7 +62,7 @@ jobs:
 
             sudo docker run -d \
              --name ws-backend \
-             -p 8080:8080 \
+             -p 8081:8081 \
              --env-file /home/${{ secrets.SERVER_USER }}/app/backend.env \
              --restart unless-stopped \
              ${{ secrets.DOCKERHUB_USERNAME }}/ws-backend:${{ github.sha }}
