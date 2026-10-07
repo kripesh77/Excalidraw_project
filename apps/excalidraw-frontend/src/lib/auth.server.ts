@@ -54,13 +54,16 @@ export async function refreshAccessToken(
   const token = refreshToken ?? (await getRefreshTokenCookie());
   if (!token) return null;
 
-  const res = await fetch(`${process.env.BACKEND_URL}/api/v1/auth/refresh`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/refresh`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
     },
-    cache: "no-store",
-  });
+  );
 
   if (!res.ok) {
     console.error("Failed to refresh access token:", await res.text());

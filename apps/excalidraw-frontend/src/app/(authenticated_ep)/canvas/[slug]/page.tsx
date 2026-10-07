@@ -7,7 +7,7 @@ import CanvasClient from "./CanvasClient";
 import { Shape } from "@/src/types/shapes";
 
 async function fetchShapes(accessToken: string, slug: string) {
-  const base = process.env.BACKEND_URL;
+  const base = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   const res = await fetch(`${base}/api/v1/room/shapes/${slug}`, {
     headers: {

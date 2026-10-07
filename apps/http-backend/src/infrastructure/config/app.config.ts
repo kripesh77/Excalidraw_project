@@ -9,10 +9,12 @@ export class AppConfig implements IAppConfig {
   backendUrl: string;
 
   constructor() {
-    this.backendUrl = process.env.BACKEND_URL!;
+    this.backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
     if (!this.backendUrl) {
-      throw new Error("BACKEND_URL environment variable is required");
+      throw new Error(
+        "NEXT_PUBLIC_BACKEND_URL environment variable is required",
+      );
     }
   }
 }

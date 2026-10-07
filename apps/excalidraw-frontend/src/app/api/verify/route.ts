@@ -9,7 +9,7 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(
-      `${process.env.BACKEND_URL}/api/v1/auth/verify/${token}`,
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1/auth/verify/${token}`,
       {
         method: "GET",
       },

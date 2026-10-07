@@ -6,7 +6,7 @@ import {
 import { redirect } from "next/navigation";
 
 async function fetchRooms(accessToken: string) {
-  const base = process.env.BACKEND_URL;
+  const base = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   const res = await fetch(`${base}/api/v1/room`, {
     headers: {
