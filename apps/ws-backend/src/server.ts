@@ -10,7 +10,7 @@ import { startShapeConsumer } from "@repo/kafka";
 
 function init() {
   startShapeConsumer();
-  const wss = new WebSocketServer({ port: 8080 });
+  const wss = new WebSocketServer({ port: 8081 });
 
   const jwtUtil = new JwtUtil(config);
 
