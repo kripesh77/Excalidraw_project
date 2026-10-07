@@ -38,3 +38,7 @@ yarn-error.log*
 *.pem
 packages/db/src/generated/
 out
+
+SOCKETIO_MIGRATION.md
+.claude
+.kilo
